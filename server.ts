@@ -791,7 +791,7 @@ async function startServer() {
 
           const { data, error } = await supabaseClient.storage
             .from(SUPABASE_STORAGE_BUCKET)
-            .download("db_fallback_store.json");
+            .download("db_fallback_store.png");
 
           if (error) {
             console.log("[Fallback Store] No backup found or error downloading from Supabase Storage:", error.message);
@@ -855,8 +855,8 @@ async function startServer() {
         // Upload backup asynchronously in background
         supabaseClient.storage
           .from(SUPABASE_STORAGE_BUCKET)
-          .upload("db_fallback_store.json", Buffer.from(jsonString, "utf8"), {
-            contentType: "application/json",
+          .upload("db_fallback_store.png", Buffer.from(jsonString, "utf8"), {
+            contentType: "image/png",
             upsert: true
           })
           .then(({ data: uploadData, error: uploadErr }) => {
