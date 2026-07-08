@@ -1,19 +1,19 @@
 export const businessInfo = {
-  name: "My Scent Boutique",
+  name: "AHR Perfumes",
   tagline: "Where Every Scent Tells a Story",
-  established: 2026,
-  address: "",
-  phone: "",
-  email: "",
-  instagram: "",
-  owner: "",
-  rating: "5.0",
-  yearsInBusiness: "0+",
-  happyCustomers: "0+",
-  totalProducts: "0+",
+  established: 2007,
+  address: "147 Jawahar Marg, Near Minara Masjid, Bombay Bazar, Indore, Madhya Pradesh 452002",
+  phone: "+91 99261 80003",
+  email: "contact@ahrperfumes.com",
+  instagram: "@a.h.r.perfumes_",
+  owner: "Mr. Zakir",
+  rating: "4.9",
+  yearsInBusiness: "15+",
+  happyCustomers: "10,000+",
+  totalProducts: "120+",
   hours: {
-    weekdays: "",
-    sunday: ""
+    weekdays: "10:00 AM – 10:00 PM",
+    sunday: "Open All Day"
   }
 };
 

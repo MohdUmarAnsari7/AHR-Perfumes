@@ -377,6 +377,33 @@ async function setupAndSeedDatabase() {
         staticBusinessInfo.hours.sunday
       ]
     );
+  } else {
+    // Automatically migrate/update if it was seeded with the default placeholder "My Scent Boutique"
+    const currentBizRes = await pool.query("SELECT name FROM business_info WHERE id = 1 LIMIT 1");
+    if (currentBizRes.rows.length > 0 && currentBizRes.rows[0].name === "My Scent Boutique") {
+      console.log("Updating business name from placeholder 'My Scent Boutique' to 'AHR Perfumes' in DB...");
+      await pool.query(
+        `UPDATE business_info 
+         SET name = $1, tagline = $2, established = $3, address = $4, phone = $5, email = $6, instagram = $7, owner = $8, rating = $9, years_in_business = $10, happy_customers = $11, total_products = $12, hours_weekdays = $13, hours_sunday = $14
+         WHERE id = 1`,
+        [
+          staticBusinessInfo.name,
+          staticBusinessInfo.tagline,
+          staticBusinessInfo.established,
+          staticBusinessInfo.address,
+          staticBusinessInfo.phone,
+          staticBusinessInfo.email,
+          staticBusinessInfo.instagram,
+          staticBusinessInfo.owner,
+          staticBusinessInfo.rating,
+          staticBusinessInfo.yearsInBusiness,
+          staticBusinessInfo.happyCustomers,
+          staticBusinessInfo.totalProducts,
+          staticBusinessInfo.hours.weekdays,
+          staticBusinessInfo.hours.sunday
+        ]
+      );
+    }
   }
 
   // 3. Categories Seeding (Bypassed to respect CMS control over empty categories)
