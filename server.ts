@@ -777,8 +777,34 @@ async function startServer() {
 
   const FALLBACK_STORE_PATH = path.join(process.cwd(), "db_fallback_store.json");
 
-  function loadFallbackData() {
+  async function loadFallbackData() {
     try {
+      if (supabaseClient) {
+        console.log("[Fallback Store] Checking for backup in Supabase Storage...");
+        try {
+          // Ensure bucket exists
+          try {
+            await supabaseClient.storage.createBucket(SUPABASE_STORAGE_BUCKET, { public: true });
+          } catch (bucketErr) {
+            // Ignore if already exists
+          }
+
+          const { data, error } = await supabaseClient.storage
+            .from(SUPABASE_STORAGE_BUCKET)
+            .download("db_fallback_store.json");
+
+          if (error) {
+            console.log("[Fallback Store] No backup found or error downloading from Supabase Storage:", error.message);
+          } else if (data) {
+            const text = await data.text();
+            fs.writeFileSync(FALLBACK_STORE_PATH, text, "utf8");
+            console.log("[Fallback Store] Successfully downloaded and cached backup from Supabase Storage.");
+          }
+        } catch (supabaseErr: any) {
+          console.error("[Fallback Store] Failed to download backup from Supabase Storage:", supabaseErr.message || supabaseErr);
+        }
+      }
+
       if (fs.existsSync(FALLBACK_STORE_PATH)) {
         const raw = fs.readFileSync(FALLBACK_STORE_PATH, "utf8");
         try {
@@ -791,7 +817,7 @@ async function startServer() {
           if (parsed.activeCategories) activeCategories = parsed.activeCategories;
           if (parsed.activeGalleryImages) activeGalleryImages = parsed.activeGalleryImages;
           if (parsed.activeWebsiteContent) activeWebsiteContent = parsed.activeWebsiteContent;
-          console.log("[Fallback Store] Loaded persistent fallback data from disk.");
+          console.log("[Fallback Store] Loaded persistent fallback data from disk cache.");
         } catch (parseErr: any) {
           console.error("[Fallback Store] Corrupted fallback data detected. Resetting store to avoid crash and log spam. Error:", parseErr.message);
           try {
@@ -803,7 +829,7 @@ async function startServer() {
           } catch (renameErr: any) {
             console.error("[Fallback Store] Failed to rename corrupted file:", renameErr.message);
           }
-          saveFallbackData();
+          await saveFallbackData();
         }
       }
     } catch (err: any) {
@@ -811,7 +837,7 @@ async function startServer() {
     }
   }
 
-  function saveFallbackData() {
+  async function saveFallbackData() {
     try {
       const data = {
         activeProducts,
@@ -820,15 +846,37 @@ async function startServer() {
         activeGalleryImages,
         activeWebsiteContent
       };
-      fs.writeFileSync(FALLBACK_STORE_PATH, JSON.stringify(data, null, 2), "utf8");
+      const jsonString = JSON.stringify(data, null, 2);
+      fs.writeFileSync(FALLBACK_STORE_PATH, jsonString, "utf8");
       console.log("[Fallback Store] Saved persistent fallback data to disk.");
+
+      if (supabaseClient) {
+        console.log("[Fallback Store] Syncing backup to Supabase Storage...");
+        // Upload backup asynchronously in background
+        supabaseClient.storage
+          .from(SUPABASE_STORAGE_BUCKET)
+          .upload("db_fallback_store.json", Buffer.from(jsonString, "utf8"), {
+            contentType: "application/json",
+            upsert: true
+          })
+          .then(({ data: uploadData, error: uploadErr }) => {
+            if (uploadErr) {
+              console.error("[Fallback Store] Failed to sync backup to Supabase Storage:", uploadErr.message);
+            } else {
+              console.log("[Fallback Store] Successfully synced backup to Supabase Storage.");
+            }
+          })
+          .catch((err: any) => {
+            console.error("[Fallback Store] Exception syncing backup to Supabase Storage:", err);
+          });
+      }
     } catch (err: any) {
       console.warn("[Fallback Store] Failed to save persistent fallback data:", err.message);
     }
   }
 
   // Load immediately on startup
-  loadFallbackData();
+  await loadFallbackData();
 
   // --- DATABASE STATUS & SETUP API ---
   app.get("/api/db/status", async (req, res) => {
