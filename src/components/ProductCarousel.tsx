@@ -85,7 +85,7 @@ export function ProductCarousel() {
             <div className="flex -ml-2 sm:-ml-4">
               {bestSellers.map((product) => (
                 <div key={product.id} className="flex-[0_0_50%] min-w-0 lg:flex-[0_0_25%] pl-2 sm:pl-4">
-                  <ProductCard product={product} />
+                  <ProductCard product={product} layout="vertical" />
                 </div>
               ))}
             </div>

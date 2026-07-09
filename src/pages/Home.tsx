@@ -133,7 +133,7 @@ export default function Home() {
                       transition={{ duration: 0.3 }}
                       key={product.id}
                     >
-                      <ProductCard product={product} />
+                      <ProductCard product={product} layout="vertical" />
                     </motion.div>
                   ))}
                 </AnimatePresence>
