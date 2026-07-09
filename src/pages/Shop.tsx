@@ -205,8 +205,8 @@ export default function Shop() {
               )}
             </div>
 
-            {/* Row 2: Categories scroll and Filter/Sort triggers */}
-            <div className="flex items-center justify-between gap-3 overflow-hidden">
+            {/* Row 2: Categories scroll */}
+            <div className="flex items-center gap-3 overflow-hidden">
               {/* Category tabs scroller */}
               <div className="flex items-center space-x-1.5 overflow-x-auto no-scrollbar flex-grow py-0.5">
                 <button
@@ -232,31 +232,6 @@ export default function Shop() {
                     {cat}
                   </button>
                 ))}
-              </div>
-
-              {/* Action Buttons for quick filter/sort setting */}
-              <div className="flex items-center space-x-1.5 flex-shrink-0">
-                <button
-                  onClick={() => setIsFilterDrawerOpen(true)}
-                  className={`flex items-center space-x-1 bg-white hover:bg-stone-50 text-stone-800 border ${
-                    priceLimit < maxProductPrice || selectedCategory ? 'border-gold-primary text-gold-accent' : 'border-stone-200'
-                  } px-3 py-1.5 rounded-full text-[10px] sm:text-xs uppercase tracking-wider transition-colors font-semibold`}
-                >
-                  <Filter className="w-3 h-3" />
-                  <span>Filter</span>
-                  {(priceLimit < maxProductPrice || selectedCategory) && (
-                    <span className="w-1.5 h-1.5 bg-gold-primary rounded-full" />
-                  )}
-                </button>
-                <button
-                  onClick={() => setIsSortDrawerOpen(true)}
-                  className={`flex items-center space-x-1 bg-white hover:bg-stone-50 text-stone-800 border ${
-                    sortBy !== 'default' ? 'border-gold-primary text-gold-accent' : 'border-stone-200'
-                  } px-3 py-1.5 rounded-full text-[10px] sm:text-xs uppercase tracking-wider transition-colors font-semibold`}
-                >
-                  <SlidersHorizontal className="w-3 h-3" />
-                  <span>Sort</span>
-                </button>
               </div>
             </div>
           </div>
@@ -303,7 +278,7 @@ export default function Shop() {
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-6 lg:gap-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-6 lg:gap-8">
               <AnimatePresence>
                 {sortedAndFilteredProducts.map((product) => (
                   <motion.div
