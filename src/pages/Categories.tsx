@@ -80,7 +80,7 @@ export default function Categories() {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4 sm:gap-8">
+            <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-2 gap-3 sm:gap-8">
               {loadedCategories.map((category, idx) => (
                 <motion.div 
                   initial={{ opacity: 0, y: 20 }}
@@ -88,21 +88,21 @@ export default function Categories() {
                   viewport={{ once: true, amount: 0.15 }}
                   transition={{ delay: idx * 0.05, duration: 0.5 }}
                   key={category.title} 
-                  className="relative aspect-[16/10] group overflow-hidden bg-white border border-gray-200 block rounded-xl sm:rounded-none"
+                  className="relative aspect-[3/4] sm:aspect-[16/10] group overflow-hidden bg-neutral-950 border border-gray-200 block rounded-xl sm:rounded-none"
                 >
                   <img 
                     src={category.image} 
                     alt={category.title} 
-                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105 opacity-60 group-hover:opacity-80"
+                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105 opacity-70 group-hover:opacity-85"
                     referrerPolicy="no-referrer"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent"></div>
+                  <div className="absolute inset-0 bg-black/45 sm:bg-black/40 group-hover:bg-black/55 transition-colors duration-300"></div>
                   
-                  <div className="absolute inset-x-0 bottom-0 p-5 sm:p-10 flex flex-col justify-end">
-                     <h3 className="font-serif text-xl sm:text-2xl md:text-4xl text-white mb-1.5 sm:mb-4">{category.title}</h3>
-                     <p className="text-gray-200 font-light text-[11px] sm:text-xs md:text-base mb-4 sm:mb-8 max-w-sm line-clamp-2 sm:line-clamp-none">{category.description}</p>
+                  <div className="absolute inset-0 p-3 sm:p-10 flex flex-col items-center justify-center text-center z-10">
+                     <h3 className="font-serif text-lg sm:text-2xl md:text-4xl text-white mb-2 sm:mb-4 uppercase tracking-widest leading-tight drop-shadow-md">{category.title}</h3>
+                     <p className="text-gray-200 font-light text-[11px] sm:text-xs md:text-base mb-4 sm:mb-8 max-w-sm hidden sm:block">{category.description}</p>
                      <div>
-                       <Link to={`/shop?category=${encodeURIComponent(category.title)}`} className="inline-block bg-white hover:bg-gold-primary text-gray-900 hover:text-white px-5 py-2 sm:px-8 sm:py-3 text-xs sm:text-sm font-semibold uppercase tracking-widest transition-colors rounded-sm shadow-xs">
+                       <Link to={`/shop?category=${encodeURIComponent(category.title)}`} className="inline-block bg-white hover:bg-gold-primary text-gray-900 hover:text-white px-4 py-1.5 sm:px-8 sm:py-3 text-[10px] sm:text-sm font-semibold uppercase tracking-widest transition-all duration-300 rounded-sm shadow-sm active:scale-95">
                          Shop Now
                        </Link>
                      </div>
