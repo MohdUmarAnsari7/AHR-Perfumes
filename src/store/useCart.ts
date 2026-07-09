@@ -26,18 +26,7 @@ interface CartStore {
 export const useCartStore = create<CartStore>()(
   persist(
     (set, get) => ({
-      items: [
-        {
-          id: "p_wisal",
-          name: "Wisal Dhahab",
-          category: "Perfume",
-          price: 3200,
-          originalPrice: 4000,
-          quantity: 1,
-          image: "https://images.unsplash.com/photo-1594035910387-fea47794261f?q=80&w=600&auto=format&fit=crop",
-          size: "50ml",
-        }
-      ], // Default item for demo purposes
+      items: [],
       addItem: (item) => {
         const isLoggedIn = useAuthStore.getState().isLoggedIn;
         if (!isLoggedIn) {
