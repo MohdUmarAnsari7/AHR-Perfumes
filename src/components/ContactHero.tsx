@@ -11,7 +11,7 @@ export function ContactHero() {
   };
 
   return (
-    <section className="relative w-full h-[35vh] md:h-[40vh] xl:h-[50vh] flex items-center justify-center overflow-hidden bg-neutral-900 mt-[72px]">
+    <section className="relative w-full h-[18vh] sm:h-[22vh] md:h-[26vh] flex items-center justify-center overflow-hidden bg-neutral-900 mt-[72px]">
       <div className="absolute inset-0">
         <img
           src={hero.bgImage}
@@ -25,18 +25,18 @@ export function ContactHero() {
       
       <div className="relative z-10 text-center px-4 sm:px-6 lg:px-8">
         <motion.h1
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8 }}
-          className="font-serif text-4xl md:text-6xl text-white mb-4 uppercase tracking-wider drop-shadow-lg"
+          transition={{ duration: 0.6 }}
+          className="font-serif text-2xl sm:text-3.5xl md:text-4.5xl text-white mb-1.5 uppercase tracking-wider drop-shadow-lg"
         >
           {hero.title}
         </motion.h1>
         <motion.p
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.2 }}
-          className="text-white text-sm md:text-base font-light tracking-wide max-w-2xl mx-auto drop-shadow-md"
+          transition={{ duration: 0.6, delay: 0.15 }}
+          className="text-white text-[11px] sm:text-xs md:text-sm font-light tracking-wide max-w-2xl mx-auto drop-shadow-md"
         >
           {hero.subtitle}
         </motion.p>

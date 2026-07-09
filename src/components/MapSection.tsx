@@ -25,11 +25,11 @@ export function MapSection() {
     <section className="py-10 bg-[#FAF9F6] border-t border-gray-200">
       <div className="max-w-[1440px] 2xl:max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16">
         <div className="text-center mb-8">
-           <h2 className="font-serif text-3xl md:text-5xl text-gray-900 mb-6">Visit Our Store</h2>
-           <div className="w-24 h-1 bg-gold-primary mx-auto"></div>
+           <h2 className="font-serif text-2xl sm:text-3.5xl md:text-4.5xl lg:text-5xl text-gray-900 mb-3 sm:mb-4">Visit Our Store</h2>
+           <div className="w-16 sm:w-24 h-0.5 sm:h-1 bg-gold-primary mx-auto"></div>
         </div>
 
-        <div className="relative w-full h-[500px] border border-gray-200 rounded-xl overflow-hidden group">
+        <div className="relative w-full h-[320px] sm:h-[400px] md:h-[500px] border border-gray-200 rounded-xl overflow-hidden group">
           <div className="absolute inset-0 bg-gold-primary/10 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-700 mix-blend-overlay z-10"></div>
           <iframe 
             src={iframeSrc} 
