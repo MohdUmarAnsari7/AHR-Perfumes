@@ -103,9 +103,18 @@ export function ProductCard({ product }: ProductCardProps) {
     });
   };
 
+  // Calculate discount percentage
+  const discountPercentage = useMemo(() => {
+    if (displayOriginalPrice && displayOriginalPrice > displayPrice) {
+      return Math.round(((displayOriginalPrice - displayPrice) / displayOriginalPrice) * 100);
+    }
+    return null;
+  }, [displayOriginalPrice, displayPrice]);
+
   return (
     <div className="group bg-white border border-stone-200 overflow-hidden h-full flex flex-col relative transition-all duration-300 hover:shadow-md">
-      {/* Image Container */}
+      
+      {/* 1. Product Image Container */}
       <div className="relative aspect-[4/5] overflow-hidden bg-white">
         <Link to={`/product/${product.id}`} className="block w-full h-full">
           <img 
@@ -115,56 +124,91 @@ export function ProductCard({ product }: ProductCardProps) {
             referrerPolicy="no-referrer"
           />
         </Link>
-        <div className="absolute top-3 right-3 flex flex-col space-y-2 z-10">
+        
+        {/* Discount Badge on Image */}
+        {discountPercentage && (
+          <div className="absolute top-2.5 left-2.5 bg-neutral-900 text-gold-primary text-[9px] font-bold px-2 py-0.5 rounded shadow-sm uppercase tracking-wider z-10">
+            {discountPercentage}% OFF
+          </div>
+        )}
+
+        {/* Action Buttons (Wishlist, Quick View) */}
+        <div className="absolute top-2.5 right-2.5 flex flex-col space-y-1.5 z-10">
           <button 
             onClick={() => toggleFavorite(product)}
-            className="w-8 h-8 bg-white/95 border border-stone-100 text-stone-800 flex items-center justify-center hover:bg-gold-primary hover:text-black hover:border-gold-primary transition-colors rounded-full shadow-sm"
+            className="w-7 h-7 sm:w-8 sm:h-8 bg-white/95 border border-stone-100 text-stone-800 flex items-center justify-center hover:bg-gold-primary hover:text-black hover:border-gold-primary transition-colors rounded-full shadow-xs"
             title={isFavorite(String(product.id)) ? "Remove from wishlist" : "Add to wishlist"}
           >
-            <Heart className={`w-3.5 h-3.5 ${isFavorite(String(product.id)) ? "fill-gold-primary text-gold-accent" : "text-stone-800"}`} />
+            <Heart className={`w-3 h-3 sm:w-3.5 sm:h-3.5 ${isFavorite(String(product.id)) ? "fill-gold-primary text-gold-accent" : "text-stone-800"}`} />
           </button>
           <Link 
             to={`/product/${product.id}`}
-            className="w-8 h-8 bg-white/95 border border-stone-100 text-stone-800 flex items-center justify-center hover:bg-gold-primary hover:text-black hover:border-gold-primary transition-colors rounded-full shadow-sm"
+            className="w-7 h-7 sm:w-8 sm:h-8 bg-white/95 border border-stone-100 text-stone-800 flex items-center justify-center hover:bg-gold-primary hover:text-black hover:border-gold-primary transition-colors rounded-full shadow-xs"
             title="Quick View"
           >
-            <Eye className="w-3.5 h-3.5" />
+            <Eye className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
           </Link>
         </div>
       </div>
 
-      {/* Content */}
-      <div className="p-4 sm:p-5 flex flex-col flex-grow text-center">
-        <p className="text-gold-primary text-xs sm:text-[10px] uppercase tracking-widest mb-1.5 font-bold">
+      {/* Content Container - Compact padding for dense, high-end look on mobile */}
+      <div className="p-2.5 sm:p-4.5 flex flex-col flex-grow text-center font-sans">
+        
+        {/* 2. Category */}
+        <p className="text-gold-primary text-[9px] sm:text-[10px] uppercase tracking-widest mb-1 font-bold">
           {product.category}
         </p>
-        <Link to={`/product/${product.id}`} className="hover:text-gold-accent transition-colors block mb-1.5">
-          <h3 className="font-serif text-base sm:text-base md:text-lg text-gray-900 leading-snug line-clamp-2 min-h-[2.75rem] sm:min-h-[2.5rem] flex items-center justify-center">
+
+        {/* 3. Product Name */}
+        <Link to={`/product/${product.id}`} className="hover:text-gold-accent transition-colors block mb-1">
+          <h3 className="font-serif text-xs sm:text-sm md:text-base text-gray-900 leading-snug line-clamp-2 min-h-[2rem] sm:min-h-[2.5rem] flex items-center justify-center font-medium">
             {product.name}
           </h3>
         </Link>
         
-        {/* Rating */}
-        <div className="flex items-center justify-center space-x-1 mb-2.5">
-          <span className="text-gold-accent text-sm sm:text-xs">★</span>
-          <span className="text-gray-600 text-xs sm:text-xs">{product.rating || "4.8"}</span>
+        {/* 4. Rating */}
+        <div className="flex items-center justify-center space-x-1 mb-2">
+          <span className="text-gold-accent text-xs">★</span>
+          <span className="text-gray-650 text-[10px] sm:text-xs font-medium">{product.rating || "4.8"}</span>
         </div>
 
-        {/* Dynamic Size Picker Pills */}
-        <div className="mb-3.5">
-          <div className="text-[11px] sm:text-[10px] uppercase tracking-wider text-stone-400 font-semibold mb-1.5">
-            Select Size
+        {/* 5, 6, 7. Current Price, Original Price (Strikethrough) & Discount Badge Row */}
+        <div className="mb-2 mt-auto">
+          <div className="flex items-center justify-center flex-wrap gap-1">
+            <span className="text-neutral-900 font-serif font-bold text-xs sm:text-sm md:text-base">
+              ₹{displayPrice.toLocaleString()}
+            </span>
+            {displayOriginalPrice && (
+              <span className="text-stone-400 text-[10px] sm:text-xs line-through ml-1">
+                ₹{displayOriginalPrice.toLocaleString()}
+              </span>
+            )}
+            {discountPercentage && (
+              <span className="text-[8px] sm:text-[9px] bg-red-50 text-red-650 font-bold px-1 py-0.2 rounded border border-red-100 ml-1">
+                -{discountPercentage}%
+              </span>
+            )}
           </div>
-          <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-1">
+          <span className="text-[8px] sm:text-[9px] uppercase tracking-widest text-stone-400 font-semibold block mt-0.5">
+            Price for {selectedSize}
+          </span>
+        </div>
+
+        {/* 8. Size Options (Dynamic Picker Pills) */}
+        <div className="mb-3.5">
+          <div className="text-[8px] sm:text-[9px] uppercase tracking-wider text-stone-400 font-bold mb-1">
+            Size options
+          </div>
+          <div className="flex flex-wrap items-center justify-center gap-1">
             {sizeOptions.map((size) => (
               <button
                 key={size}
                 type="button"
                 onClick={() => setSelectedSize(size)}
-                className={`px-2.5 py-1 sm:px-2 sm:py-1 text-xs sm:text-[10px] font-mono font-bold tracking-tight rounded border transition-all ${
+                className={`px-1.5 py-0.5 text-[9px] sm:text-[10px] font-mono font-bold tracking-tight rounded transition-all border ${
                   selectedSize === size
                     ? "bg-neutral-900 border-neutral-900 text-white shadow-xs"
-                    : "bg-white border-neutral-200 text-neutral-600 hover:border-stone-400"
+                    : "bg-stone-50 border-stone-200 text-neutral-600 hover:border-stone-400"
                 }`}
               >
                 {size}
@@ -173,29 +217,13 @@ export function ProductCard({ product }: ProductCardProps) {
           </div>
         </div>
 
-        {/* Price Tag with selected size indication */}
-        <div className="mb-4 mt-auto">
-          <div className="flex items-center justify-center space-x-2">
-            <span className="text-neutral-900 font-serif font-bold text-base sm:text-base md:text-lg">
-              ₹{displayPrice.toLocaleString()}
-            </span>
-            {displayOriginalPrice && (
-              <span className="text-stone-400 text-xs sm:text-xs line-through">
-                ₹{displayOriginalPrice.toLocaleString()}
-              </span>
-            )}
-          </div>
-          <span className="text-[11px] sm:text-[10px] uppercase tracking-widest text-gold-accent font-semibold block mt-0.5">
-            Price for {selectedSize}
-          </span>
-        </div>
-
-        <div>
+        {/* 9. Add to Cart Button */}
+        <div className="mt-auto">
           <button 
             onClick={handleAddToCart}
-            className="w-full py-3 sm:py-2.5 border border-stone-200 text-xs sm:text-xs uppercase tracking-wider hover:bg-gold-primary hover:text-black hover:border-gold-primary transition-all duration-300 flex items-center justify-center space-x-2 font-bold"
+            className="w-full py-2 sm:py-2.5 bg-neutral-900 text-white border border-neutral-900 text-[9px] sm:text-xs uppercase tracking-wider hover:bg-gold-primary hover:text-black hover:border-gold-primary transition-all duration-300 flex items-center justify-center space-x-1 sm:space-x-2 font-bold cursor-pointer rounded-sm"
           >
-            <ShoppingCart className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
+            <ShoppingCart className="w-3.5 h-3.5" />
             <span>Add to Cart</span>
           </button>
         </div>
