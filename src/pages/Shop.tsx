@@ -7,6 +7,7 @@ import { Filter, ChevronDown, Heart, Eye, Search, RotateCcw, SlidersHorizontal }
 import { useCartStore } from "../store/useCart";
 import { useWebsiteContentStore } from "../store/useWebsiteContent";
 import { useFavoritesStore } from "../store/useFavorites";
+import { ProductCard } from "../components/ProductCard";
 
 export default function Shop() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -117,7 +118,7 @@ export default function Shop() {
       </Helmet>
 
       {/* Hero Section */}
-      <section className="relative w-full h-[35vh] md:h-[40vh] xl:h-[50vh] flex items-center justify-center overflow-hidden bg-white mt-[72px]">
+      <section className="relative w-full h-[45vh] sm:h-[40vh] md:h-[40vh] xl:h-[50vh] flex items-center justify-center overflow-hidden bg-white mt-[72px]">
         <div className="absolute inset-0">
           <img
             src={shopHero.bgImage}
@@ -130,7 +131,7 @@ export default function Shop() {
           <motion.h1 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="font-serif text-3xl md:text-5xl text-white mb-3 uppercase tracking-widest leading-snug drop-shadow-md"
+            className="font-serif text-4xl sm:text-5xl md:text-5xl text-white mb-3 uppercase tracking-widest leading-snug drop-shadow-md"
           >
             {shopHero.title}
           </motion.h1>
@@ -138,7 +139,7 @@ export default function Shop() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="text-xs md:text-sm text-stone-200 uppercase tracking-widest mb-6 leading-relaxed drop-shadow-sm"
+            className="text-sm sm:text-base md:text-sm text-stone-200 uppercase tracking-widest mb-6 leading-relaxed drop-shadow-sm"
           >
             {shopHero.subtitle}
           </motion.p>
@@ -158,19 +159,19 @@ export default function Shop() {
           <div className="max-w-4xl mx-auto mb-6">
             <div className="relative group">
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <Search className="h-5 w-5 text-stone-400 group-focus-within:text-gold-accent transition-colors" />
+                <Search className="h-5.5 w-5.5 sm:h-5 sm:w-5 text-stone-400 group-focus-within:text-gold-accent transition-colors" />
               </div>
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search luxury scents by name, category, or price (e.g., 'Saffron', 'Oud', 'under 2000')..."
-                className="w-full pl-12 pr-12 py-4 bg-white border border-stone-200 text-stone-800 rounded-sm shadow-sm placeholder:text-stone-400 text-sm focus:outline-none focus:border-gold-primary focus:ring-1 focus:ring-gold-primary/30 transition-all font-sans"
+                className="w-full pl-12 pr-12 py-4 bg-white border border-stone-200 text-stone-800 rounded-sm shadow-sm placeholder:text-stone-400 text-base sm:text-sm focus:outline-none focus:border-gold-primary focus:ring-1 focus:ring-gold-primary/30 transition-all font-sans"
               />
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery("")}
-                  className="absolute inset-y-0 right-0 pr-4 flex items-center text-stone-400 hover:text-stone-700 text-xs uppercase font-bold tracking-wider transition-colors"
+                  className="absolute inset-y-0 right-0 pr-4 flex items-center text-stone-400 hover:text-stone-700 text-sm sm:text-xs uppercase font-bold tracking-wider transition-colors"
                   title="Clear search"
                 >
                   Clear
@@ -179,12 +180,12 @@ export default function Shop() {
             </div>
             {searchQuery && (
               <div className="flex justify-between items-center mt-2.5 px-1">
-                <p className="text-[10px] text-stone-400 uppercase tracking-widest">
+                <p className="text-xs sm:text-[10px] text-stone-400 uppercase tracking-widest">
                   Showing results for "{searchQuery}"
                 </p>
                 <button
                   onClick={() => setSearchQuery("")}
-                  className="flex items-center space-x-1 text-[10px] uppercase tracking-widest text-stone-500 hover:text-gold-accent transition-colors font-bold"
+                  className="flex items-center space-x-1 text-xs sm:text-[10px] uppercase tracking-widest text-stone-500 hover:text-gold-accent transition-colors font-bold"
                 >
                   <RotateCcw className="w-3 h-3" />
                   <span>Reset Search</span>
@@ -198,7 +199,7 @@ export default function Shop() {
             <div className="flex items-center space-x-4 overflow-x-auto w-full md:w-auto pb-4 md:pb-0 no-scrollbar">
               <button 
                 onClick={() => handleCategorySelect(null)}
-                className={`flex-shrink-0 text-sm tracking-widest uppercase pb-1 border-b-2 transition-colors ${
+                className={`flex-shrink-0 text-base sm:text-sm tracking-widest uppercase pb-2 sm:pb-1 border-b-2 transition-colors ${
                   selectedCategory === null 
                     ? "border-gold-primary text-gold-accent" 
                     : "border-transparent text-gray-500 hover:text-gray-700"
@@ -210,7 +211,7 @@ export default function Shop() {
                 <button 
                   key={cat}
                   onClick={() => handleCategorySelect(cat)}
-                  className={`flex-shrink-0 text-sm tracking-widest uppercase pb-1 border-b-2 transition-colors ${
+                  className={`flex-shrink-0 text-base sm:text-sm tracking-widest uppercase pb-2 sm:pb-1 border-b-2 transition-colors ${
                     selectedCategory === cat 
                       ? "border-gold-primary text-gold-accent" 
                       : "border-transparent text-gray-500 hover:text-gray-700"
@@ -222,9 +223,9 @@ export default function Shop() {
             </div>
 
             <div className="flex items-center space-x-4 w-full md:w-auto justify-between md:justify-end">
-              <span className="text-gray-600 text-sm uppercase tracking-widest">{filteredProducts.length} Products</span>
-              <button className="flex items-center space-x-2 text-sm uppercase tracking-widest text-gray-900 border border-gray-200 px-4 py-2 hover:border-gold-primary transition-colors">
-                <Filter className="w-4 h-4" />
+              <span className="text-gray-600 text-base sm:text-sm uppercase tracking-widest">{filteredProducts.length} Products</span>
+              <button className="flex items-center space-x-2.5 text-base sm:text-sm uppercase tracking-widest text-gray-900 border border-gray-200 px-5 py-3 sm:px-4 sm:py-2 hover:border-gold-primary transition-colors">
+                <Filter className="w-5 h-5 sm:w-4 sm:h-4" />
                 <span>Filter</span>
               </button>
             </div>
@@ -233,9 +234,9 @@ export default function Shop() {
           {/* Grid */}
           {filteredProducts.length === 0 ? (
             <div className="text-center py-24 bg-white border border-stone-100 max-w-xl mx-auto rounded-2xl p-10 shadow-sm mt-8">
-              <SlidersHorizontal className="w-12 h-12 text-stone-300 mx-auto mb-4 stroke-[1.5]" />
-              <h3 className="font-serif text-2xl text-gray-900 mb-2">No Fragrances Found</h3>
-              <p className="text-sm text-stone-500 max-w-sm mx-auto mb-6">We couldn't find any products in our store. Try adjusting your filters or search query, or check back later as we upload new luxury scents.</p>
+              <SlidersHorizontal className="w-16 h-16 sm:w-12 sm:h-12 text-stone-300 mx-auto mb-4 stroke-[1.5]" />
+              <h3 className="font-serif text-3xl sm:text-2xl text-gray-900 mb-2">No Fragrances Found</h3>
+              <p className="text-base sm:text-sm text-stone-500 max-w-sm mx-auto mb-6">We couldn't find any products in our store. Try adjusting your filters or search query, or check back later as we upload new luxury scents.</p>
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6 lg:gap-8">
@@ -248,63 +249,8 @@ export default function Shop() {
                     exit={{ opacity: 0, scale: 0.9 }}
                     transition={{ duration: 0.3 }}
                     key={product.id}
-                    className="group bg-white border border-gray-200 overflow-hidden h-full flex flex-col relative"
                   >
-                    <div className="relative aspect-[4/5] overflow-hidden bg-white">
-                      <Link to={`/product/${product.id}`} className="block w-full h-full">
-                        <img 
-                          src={product.image} 
-                          alt={product.name} 
-                          className="w-full h-full object-cover opacity-100"
-                          referrerPolicy="no-referrer"
-                        />
-                      </Link>
-                      <div className="absolute top-3 right-3 flex flex-col space-y-2 z-10">
-                         <button 
-                           onClick={() => toggleFavorite(product)}
-                           className="w-8 h-8 bg-white/95 border border-stone-100 text-stone-800 flex items-center justify-center hover:bg-gold-primary hover:text-black hover:border-gold-primary transition-colors rounded-full shadow-sm"
-                           title={isFavorite(product.id) ? "Remove from wishlist" : "Add to wishlist"}
-                         >
-                           <Heart className={`w-3.5 h-3.5 ${isFavorite(product.id) ? "fill-gold-primary text-gold-accent" : "text-stone-800"}`} />
-                         </button>
-                         <Link 
-                           to={`/product/${product.id}`}
-                           className="w-8 h-8 bg-white/95 border border-stone-100 text-stone-800 flex items-center justify-center hover:bg-gold-primary hover:text-black hover:border-gold-primary transition-colors rounded-full shadow-sm"
-                           title="Quick View"
-                         >
-                           <Eye className="w-3.5 h-3.5" />
-                         </Link>
-                      </div>
-                    </div>
-
-                    <div className="p-6 flex flex-col flex-grow text-center">
-                      <p className="text-gold-primary text-xs uppercase tracking-widest mb-2 font-semibold">
-                        {product.category}
-                      </p>
-                      <Link to={`/product/${product.id}`} className="hover:text-gold-accent transition-colors">
-                        <h3 className="font-serif text-xl text-gray-900 mb-2">{product.name}</h3>
-                      </Link>
-                      <div className="flex items-center justify-center space-x-1 mb-4">
-                         <span className="text-gold-accent text-sm">★</span>
-                         <span className="text-gray-600 text-sm">{product.rating}</span>
-                      </div>
-                      <p className="text-gray-900 font-medium mb-6">₹{product.price.toLocaleString()}</p>
-                      <div className="mt-auto">
-                         <button 
-                           onClick={() => addItem({
-                             id: product.id,
-                             name: product.name,
-                             category: product.category,
-                             price: product.price,
-                             quantity: 1,
-                             image: product.image
-                           })}
-                           className="w-full py-3 border border-gray-200 text-sm uppercase tracking-wider hover:bg-gold-primary hover:text-black hover:border-gold-primary transition-all duration-300"
-                         >
-                           Add to Cart
-                         </button>
-                      </div>
-                    </div>
+                    <ProductCard product={product} />
                   </motion.div>
                 ))}
               </AnimatePresence>

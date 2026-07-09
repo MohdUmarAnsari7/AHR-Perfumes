@@ -134,34 +134,34 @@ export function ProductCard({ product }: ProductCardProps) {
       </div>
 
       {/* Content */}
-      <div className="p-3 sm:p-5 flex flex-col flex-grow text-center">
-        <p className="text-gold-primary text-[9px] sm:text-[10px] uppercase tracking-widest mb-1 font-bold">
+      <div className="p-4 sm:p-5 flex flex-col flex-grow text-center">
+        <p className="text-gold-primary text-xs sm:text-[10px] uppercase tracking-widest mb-1.5 font-bold">
           {product.category}
         </p>
-        <Link to={`/product/${product.id}`} className="hover:text-gold-accent transition-colors block mb-1">
-          <h3 className="font-serif text-sm sm:text-base md:text-lg text-gray-900 leading-snug line-clamp-2 min-h-[2rem] sm:min-h-[2.5rem] flex items-center justify-center">
+        <Link to={`/product/${product.id}`} className="hover:text-gold-accent transition-colors block mb-1.5">
+          <h3 className="font-serif text-base sm:text-base md:text-lg text-gray-900 leading-snug line-clamp-2 min-h-[2.75rem] sm:min-h-[2.5rem] flex items-center justify-center">
             {product.name}
           </h3>
         </Link>
         
         {/* Rating */}
-        <div className="flex items-center justify-center space-x-1 mb-2">
-          <span className="text-gold-accent text-xs">★</span>
-          <span className="text-gray-600 text-[11px] sm:text-xs">{product.rating || "4.8"}</span>
+        <div className="flex items-center justify-center space-x-1 mb-2.5">
+          <span className="text-gold-accent text-sm sm:text-xs">★</span>
+          <span className="text-gray-600 text-xs sm:text-xs">{product.rating || "4.8"}</span>
         </div>
 
         {/* Dynamic Size Picker Pills */}
-        <div className="mb-3">
-          <div className="text-[9px] sm:text-[10px] uppercase tracking-wider text-stone-400 font-semibold mb-1">
+        <div className="mb-3.5">
+          <div className="text-[11px] sm:text-[10px] uppercase tracking-wider text-stone-400 font-semibold mb-1.5">
             Select Size
           </div>
-          <div className="flex flex-wrap items-center justify-center gap-1">
+          <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-1">
             {sizeOptions.map((size) => (
               <button
                 key={size}
                 type="button"
                 onClick={() => setSelectedSize(size)}
-                className={`px-1.5 py-0.5 sm:px-2 sm:py-1 text-[9px] sm:text-[10px] font-mono font-bold tracking-tight rounded border transition-all ${
+                className={`px-2.5 py-1 sm:px-2 sm:py-1 text-xs sm:text-[10px] font-mono font-bold tracking-tight rounded border transition-all ${
                   selectedSize === size
                     ? "bg-neutral-900 border-neutral-900 text-white shadow-xs"
                     : "bg-white border-neutral-200 text-neutral-600 hover:border-stone-400"
@@ -174,18 +174,18 @@ export function ProductCard({ product }: ProductCardProps) {
         </div>
 
         {/* Price Tag with selected size indication */}
-        <div className="mb-3 mt-auto">
+        <div className="mb-4 mt-auto">
           <div className="flex items-center justify-center space-x-2">
-            <span className="text-neutral-900 font-serif font-bold text-sm sm:text-base md:text-lg">
+            <span className="text-neutral-900 font-serif font-bold text-base sm:text-base md:text-lg">
               ₹{displayPrice.toLocaleString()}
             </span>
             {displayOriginalPrice && (
-              <span className="text-stone-400 text-[10px] sm:text-xs line-through">
+              <span className="text-stone-400 text-xs sm:text-xs line-through">
                 ₹{displayOriginalPrice.toLocaleString()}
               </span>
             )}
           </div>
-          <span className="text-[9px] sm:text-[10px] uppercase tracking-widest text-gold-accent font-semibold block mt-0.5">
+          <span className="text-[11px] sm:text-[10px] uppercase tracking-widest text-gold-accent font-semibold block mt-0.5">
             Price for {selectedSize}
           </span>
         </div>
@@ -193,9 +193,9 @@ export function ProductCard({ product }: ProductCardProps) {
         <div>
           <button 
             onClick={handleAddToCart}
-            className="w-full py-2 sm:py-2.5 border border-stone-200 text-[10px] sm:text-xs uppercase tracking-wider hover:bg-gold-primary hover:text-black hover:border-gold-primary transition-all duration-300 flex items-center justify-center space-x-1 sm:space-x-2 font-semibold"
+            className="w-full py-3 sm:py-2.5 border border-stone-200 text-xs sm:text-xs uppercase tracking-wider hover:bg-gold-primary hover:text-black hover:border-gold-primary transition-all duration-300 flex items-center justify-center space-x-2 font-bold"
           >
-            <ShoppingCart className="w-3.5 h-3.5" />
+            <ShoppingCart className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
             <span>Add to Cart</span>
           </button>
         </div>
