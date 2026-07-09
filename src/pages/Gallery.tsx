@@ -38,6 +38,12 @@ export default function Gallery() {
     return match ? match[1] : "";
   };
 
+  const isVideoUrl = (url: string) => {
+    if (!url) return false;
+    const cleanUrl = url.split("?")[0].split("#")[0].toLowerCase();
+    return cleanUrl.endsWith(".mp4") || cleanUrl.endsWith(".mov") || cleanUrl.endsWith(".webm") || url.includes("video/mp4") || url.includes(".mp4");
+  };
+
   return (
     <>
       <Helmet>
@@ -108,10 +114,14 @@ export default function Gallery() {
             <div className="columns-2 sm:columns-2 lg:columns-3 xl:columns-4 gap-3 sm:gap-6 space-y-3 sm:space-y-6">
               {loadedImages.map((img, idx) => {
                 const instagramUrl = img.instagram_url || img.instagramUrl || img.image_url || img.imageUrl || "";
+                const videoUrl = img.image_url || img.imageUrl || "";
+                
+                const isDirectVideo = isVideoUrl(videoUrl);
                 const shortcode = getReelShortcode(instagramUrl);
-                if (!shortcode) return null;
+                
+                if (!isDirectVideo && !shortcode) return null;
 
-                const embedUrl = `https://www.instagram.com/reel/${shortcode}/embed/`;
+                const embedUrl = shortcode ? `https://www.instagram.com/reel/${shortcode}/embed/` : "";
 
                 // Organic top-margins to scatter and stagger the masonry column cards
                 const offsets = ["mt-0", "mt-3 sm:mt-6", "mt-1.5 sm:mt-3", "mt-4 sm:mt-8"];
@@ -127,34 +137,57 @@ export default function Gallery() {
                     className={`break-inside-avoid relative group overflow-hidden bg-white rounded-xl sm:rounded-2xl shadow-xs hover:shadow-md transition-all duration-300 ${staggerClass}`}
                   >
                     <div className="relative aspect-[9/16] overflow-hidden rounded-xl sm:rounded-2xl bg-neutral-950">
-                      {/* Embedded Reel Frame */}
-                      <iframe
-                        src={embedUrl}
-                        className="absolute border-0 select-none pointer-events-none"
-                        style={{
-                          top: "-45px",
-                          left: "-1px",
-                          width: "calc(100% + 2px)",
-                          height: "calc(100% + 105px)",
-                        }}
-                        scrolling="no"
-                        allowFullScreen
-                      />
+                      {isDirectVideo ? (
+                        /* Native HTML5 Video - 100% clean, autoplay, muted, loops continuously with zero UI */
+                        <video
+                          src={videoUrl}
+                          autoPlay
+                          muted
+                          loop
+                          playsInline
+                          className="absolute inset-0 w-full h-full object-cover select-none pointer-events-none"
+                        />
+                      ) : (
+                        /* Aggressively cropped Instagram embed iframe */
+                        <iframe
+                          src={embedUrl}
+                          className="absolute border-0 select-none pointer-events-none transition-all duration-500 group-hover:scale-102"
+                          style={{
+                            top: "-20%",
+                            left: "-20%",
+                            width: "140%",
+                            height: "140%",
+                          }}
+                          scrolling="no"
+                          allowFullScreen
+                        />
+                      )}
 
                       {/* Transparent overlay that redirects user on click */}
                       <div 
-                        onClick={() => window.open(instagramUrl, "_blank")}
-                        className="absolute inset-0 z-10 cursor-pointer bg-black/0 hover:bg-black/10 transition-colors duration-300 flex flex-col justify-between p-4"
+                        onClick={() => window.open(instagramUrl || videoUrl, "_blank")}
+                        className="absolute inset-0 z-10 cursor-pointer bg-black/0 hover:bg-black/20 transition-all duration-300 flex flex-col justify-between p-3 sm:p-5"
                       >
-                        {/* Hover elements */}
-                        <div className="self-end bg-black/50 backdrop-blur-xs text-gold-accent p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 shadow-sm">
-                          <ExternalLink className="w-3.5 h-3.5" />
+                        {/* Hover subtle golden frame accent */}
+                        <div className="absolute inset-0 border border-gold-primary/0 group-hover:border-gold-primary/20 rounded-xl sm:rounded-2xl transition-all duration-300 pointer-events-none"></div>
+
+                        {/* Top Right: Gold external link icon */}
+                        <div className="self-end bg-[#1E1E1E]/80 backdrop-blur-md text-gold-accent p-1.5 sm:p-2 rounded-full opacity-0 group-hover:opacity-100 transform translate-y-[-10px] group-hover:translate-y-0 transition-all duration-300 shadow-lg border border-gold-primary/10">
+                          <ExternalLink className="w-3 sm:w-4 h-3 sm:h-4" />
                         </div>
-                        <div className="self-center bg-black/40 backdrop-blur-xs text-white px-3 py-1.5 rounded-full opacity-60 group-hover:opacity-100 transition-opacity flex items-center space-x-1">
-                          <svg className="w-3 h-3 fill-current" viewBox="0 0 24 24">
-                            <path d="M8 5v14l11-7z" stroke="currentColor" strokeWidth="1" />
-                          </svg>
-                          <span className="text-[10px] uppercase tracking-widest font-bold">Watch Reel</span>
+
+                        {/* Center: Premium watch indicator button */}
+                        <div className="self-center bg-black/75 backdrop-blur-md text-white border border-gold-primary/30 px-4 py-2 rounded-full opacity-0 group-hover:opacity-100 transform scale-95 group-hover:scale-100 transition-all duration-300 flex items-center space-x-2 shadow-xl">
+                          <Instagram className="w-3.5 h-3.5 text-gold-accent animate-pulse" />
+                          <span className="text-[10px] uppercase tracking-widest font-serif font-semibold text-gold-accent">View Reel</span>
+                        </div>
+
+                        {/* Bottom: Minimal aesthetic status badge */}
+                        <div className="flex items-center space-x-2 bg-neutral-950/80 backdrop-blur-md px-2.5 py-1 rounded-full w-fit border border-white/5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-gold-accent animate-pulse"></span>
+                          <span className="text-[8px] uppercase tracking-widest font-mono text-neutral-300">
+                            {isDirectVideo ? "Loop Feed" : "Instagram Reel"}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -168,3 +201,4 @@ export default function Gallery() {
     </>
   );
 }
+

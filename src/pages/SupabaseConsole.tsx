@@ -45,7 +45,8 @@ import {
   ChevronUp,
   ChevronDown,
   Pencil,
-  Instagram
+  Instagram,
+  Video
 } from "lucide-react";
 import { useBusinessInfoStore } from "../store/useBusinessInfo";
 import { useWebsiteContentStore } from "../store/useWebsiteContent";
@@ -401,8 +402,8 @@ export default function SupabaseConsole() {
   // --- VISUAL STORY (GALLERY) CRUD HANDLERS ---
   const handleAddGalleryImage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newGalleryUrl) {
-      showToast("Please upload an image first before adding it to the section.", "error");
+    if (!newGalleryInstagramUrl) {
+      showToast("Please enter an Instagram Reel URL first.", "error");
       return;
     }
 
@@ -411,19 +412,19 @@ export default function SupabaseConsole() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          image_url: newGalleryUrl,
+          image_url: newGalleryUrl || newGalleryInstagramUrl,
           instagram_url: newGalleryInstagramUrl,
           sort_order: galleryList.length
         })
       });
       if (res.ok) {
-        showToast("Gallery image registered successfully!", "success");
+        showToast("Gallery Reel registered successfully!", "success");
         setNewGalleryUrl("");
         setNewGalleryInstagramUrl("https://www.instagram.com/a.h.r.perfumes_/");
         loadGallery();
-        addActivity("Registered new Visual Story gallery image", "success");
+        addActivity("Registered new Visual Story gallery item", "success");
       } else {
-        showToast("Failed to register image", "error");
+        showToast("Failed to register gallery item", "error");
       }
     } catch (err: any) {
       showToast(err.message, "error");
@@ -433,8 +434,8 @@ export default function SupabaseConsole() {
   const handleStartEditGallery = (item: any) => {
     setEditingGalleryId(item.id);
     setEditGalleryForm({
-      image_url: item.image_url || item.imageUrl,
-      instagram_url: item.instagram_url || item.instagramUrl || "https://www.instagram.com/a.h.r.perfumes_/",
+      image_url: item.instagram_url || item.instagramUrl || item.image_url || item.imageUrl || "https://www.instagram.com/a.h.r.perfumes_/",
+      instagram_url: item.instagram_url || item.instagramUrl || item.image_url || item.imageUrl || "https://www.instagram.com/a.h.r.perfumes_/",
       sort_order: item.sort_order || 0
     });
   };
@@ -447,12 +448,12 @@ export default function SupabaseConsole() {
         body: JSON.stringify(editGalleryForm)
       });
       if (res.ok) {
-        showToast("Gallery image updated successfully!", "success");
+        showToast("Instagram Reel link updated successfully!", "success");
         setEditingGalleryId(null);
         loadGallery();
-        addActivity("Updated Visual Story gallery image", "success");
+        addActivity("Updated Instagram Reel link", "success");
       } else {
-        showToast("Failed to update image", "error");
+        showToast("Failed to update Reel link", "error");
       }
     } catch (err: any) {
       showToast(err.message, "error");
@@ -460,17 +461,17 @@ export default function SupabaseConsole() {
   };
 
   const handleDeleteGalleryImage = async (id: any) => {
-    triggerConfirm("Are you sure you want to delete this image from Our Visual Story?", async () => {
+    triggerConfirm("Are you sure you want to delete this Reel link from Our Visual Story?", async () => {
       try {
         const res = await fetch(`/api/gallery-images/${id}`, {
           method: "DELETE"
         });
         if (res.ok) {
-          showToast("Gallery image deleted successfully!", "success");
+          showToast("Reel link deleted successfully!", "success");
           loadGallery();
-          addActivity("Deleted Visual Story gallery image", "success");
+          addActivity("Deleted Instagram Reel link", "success");
         } else {
-          showToast("Failed to delete image", "error");
+          showToast("Failed to delete Reel link", "error");
         }
       } catch (err: any) {
         showToast(err.message, "error");
@@ -2021,17 +2022,34 @@ export default function SupabaseConsole() {
                       <div className="bg-white border border-[#F0EAE1] rounded-2xl p-6 shadow-xs space-y-4">
                         <h3 className="text-xs font-bold uppercase tracking-widest text-neutral-800 flex items-center space-x-2">
                           <Plus className="w-4 h-4 text-gold-accent" />
-                          <span>Register New Gallery Item</span>
+                          <span>Register New Instagram Reel</span>
                         </h3>
 
                         <form onSubmit={handleAddGalleryImage} className="space-y-4">
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-1.5">
-                              <label className="block text-[10px] uppercase tracking-wider font-bold text-neutral-600">Gallery Image File</label>
+                              <label className="block text-[10px] uppercase tracking-wider font-bold text-neutral-600">Instagram Reel URL</label>
+                              <input
+                                type="url"
+                                required
+                                placeholder="https://www.instagram.com/reel/..."
+                                value={newGalleryInstagramUrl}
+                                onChange={(e) => setNewGalleryInstagramUrl(e.target.value)}
+                                className="w-full bg-[#FAF9F6] border border-neutral-200 text-xs rounded-xl px-4 py-2.5 focus:outline-none focus:border-gold-primary"
+                              />
+                              <p className="text-[10px] text-neutral-400 mt-1 uppercase tracking-wider">Example: https://www.instagram.com/reel/C8gH3XgS9p_/</p>
+                            </div>
+
+                            <div className="space-y-1.5">
+                              <label className="block text-[10px] uppercase tracking-wider font-bold text-neutral-600">Premium Video / Image (Optional)</label>
                               <div className="flex items-center space-x-4 bg-[#FAF9F6] border border-neutral-200 p-3 rounded-xl">
                                 {newGalleryUrl ? (
-                                  <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-neutral-300">
-                                    <img src={newGalleryUrl} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                                  <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-neutral-300 bg-black">
+                                    {newGalleryUrl.toLowerCase().endsWith(".mp4") || newGalleryUrl.toLowerCase().endsWith(".mov") || newGalleryUrl.includes("video") ? (
+                                      <video src={newGalleryUrl} className="w-full h-full object-cover" muted playsInline />
+                                    ) : (
+                                      <img src={newGalleryUrl} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                                    )}
                                     <button 
                                       type="button"
                                       onClick={() => setNewGalleryUrl("")}
@@ -2041,43 +2059,34 @@ export default function SupabaseConsole() {
                                     </button>
                                   </div>
                                 ) : (
-                                  <div className="w-16 h-16 rounded-lg border border-dashed border-neutral-300 bg-white flex items-center justify-center text-[10px] text-neutral-400 font-semibold">
-                                    No Image
+                                  <div className="w-16 h-16 rounded-lg border border-dashed border-neutral-300 bg-white flex items-center justify-center text-[9px] text-neutral-400 font-semibold text-center leading-tight p-1">
+                                    No Custom Asset
                                   </div>
                                 )}
-                                 <button
-                                   type="button"
-                                   onClick={() => visualStoryInputRef.current?.click()}
-                                   className="bg-neutral-900 text-white hover:bg-gold-primary hover:text-black transition-colors px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center space-x-1 border"
-                                 >
-                                   <Upload className="w-4 h-4 text-gold-accent" />
-                                   <span>Upload File</span>
-                                 </button>
-                                 <input
-                                   ref={visualStoryInputRef}
-                                   type="file"
-                                   accept="image/*"
-                                   className="hidden"
-                                   onChange={(e) => {
-                                     handleUploadImage(e, (url) => {
-                                       setNewGalleryUrl(url);
-                                       showToast("Image uploaded successfully! Fill Instagram link and click Add.", "success");
-                                     });
-                                   }}
-                                 />
+                                <button
+                                  type="button"
+                                  onClick={() => visualStoryInputRef.current?.click()}
+                                  className="bg-neutral-900 text-white hover:bg-gold-primary hover:text-black transition-colors px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center space-x-1 border"
+                                >
+                                  <Upload className="w-3.5 h-3.5 text-gold-accent" />
+                                  <span>Upload File</span>
+                                </button>
+                                <input
+                                  ref={visualStoryInputRef}
+                                  type="file"
+                                  accept="image/*,video/*"
+                                  className="hidden"
+                                  onChange={(e) => {
+                                    handleUploadImage(e, (url) => {
+                                      setNewGalleryUrl(url);
+                                      showToast("Asset uploaded successfully! Click Add Reel to register.", "success");
+                                    });
+                                  }}
+                                />
                               </div>
-                            </div>
-
-                            <div className="space-y-1.5">
-                              <label className="block text-[10px] uppercase tracking-wider font-bold text-neutral-600">Instagram / Destination Link</label>
-                              <input
-                                type="url"
-                                required
-                                placeholder="https://www.instagram.com/p/..."
-                                value={newGalleryInstagramUrl}
-                                onChange={(e) => setNewGalleryInstagramUrl(e.target.value)}
-                                className="w-full bg-[#FAF9F6] border border-neutral-200 text-xs rounded-xl px-4 py-2.5 focus:outline-none focus:border-gold-primary"
-                              />
+                              <p className="text-[9px] text-neutral-400 mt-1 uppercase tracking-wider leading-relaxed">
+                                Upload a raw .mp4 video for 100% clean, branding-free, auto-looping playback on the site!
+                              </p>
                             </div>
                           </div>
 
@@ -2087,7 +2096,7 @@ export default function SupabaseConsole() {
                               className="bg-neutral-800 hover:bg-neutral-900 text-white px-6 py-2.5 rounded-xl text-xs uppercase tracking-widest font-bold flex items-center space-x-2"
                             >
                               <Plus className="w-4 h-4 text-gold-accent" />
-                              <span>Add Image to Section</span>
+                              <span>Add Reel to Gallery</span>
                             </button>
                           </div>
                         </form>
@@ -2096,44 +2105,120 @@ export default function SupabaseConsole() {
                       {/* Gallery Items Grid */}
                       <div className="space-y-4">
                         <h3 className="text-xs font-bold uppercase tracking-widest text-neutral-800">
-                          Active Gallery Images ({galleryList.length})
+                          Active Instagram Reels ({galleryList.length})
                         </h3>
 
                         {loadingGallery ? (
-                          <div className="text-center py-12 text-neutral-400">Loading gallery images...</div>
+                          <div className="text-center py-12 text-neutral-400">Loading Reels...</div>
                         ) : galleryList.length === 0 ? (
                           <div className="text-center py-12 bg-white border border-dashed rounded-2xl text-neutral-400 uppercase tracking-widest font-bold text-xs">
-                            No gallery images found.
+                            No Instagram Reels found.
                           </div>
                         ) : (
-                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                             {galleryList.map((item) => {
-                              const imageUrl = item.image_url || item.imageUrl;
+                              const instagramUrl = item.instagram_url || item.instagramUrl || item.image_url || item.imageUrl || "";
+                              const getReelShortcode = (url: string) => {
+                                if (!url) return "";
+                                const match = url.match(/(?:instagram\.com\/(?:p|reel|tv)\/)([a-zA-Z0-9_\-]+)/i);
+                                return match ? match[1] : "";
+                              };
+                              const shortcode = getReelShortcode(instagramUrl);
+                              const embedUrl = shortcode ? `https://www.instagram.com/reel/${shortcode}/embed/` : "";
+                              const isEditing = editingGalleryId === item.id;
 
                               return (
                                 <div
                                   key={item.id}
-                                  className="group relative bg-white border border-[#F0EAE1] rounded-2xl overflow-hidden shadow-xs aspect-square"
+                                  className="bg-white border border-[#F0EAE1] rounded-2xl overflow-hidden shadow-xs flex flex-col h-full"
                                 >
-                                  {/* The Image */}
-                                  <img
-                                    src={imageUrl}
-                                    alt=""
-                                    className="w-full h-full object-cover"
-                                    referrerPolicy="no-referrer"
-                                  />
+                                  {/* Preview Area */}
+                                  <div className="relative aspect-[9/16] bg-neutral-900 overflow-hidden flex-1">
+                                    {embedUrl ? (
+                                      <div className="absolute inset-0 w-full h-full overflow-hidden">
+                                        <iframe
+                                          src={embedUrl}
+                                          className="absolute border-0 select-none pointer-events-none"
+                                          style={{
+                                            top: "-45px",
+                                            left: "-1px",
+                                            width: "calc(100% + 2px)",
+                                            height: "calc(100% + 105px)",
+                                          }}
+                                          scrolling="no"
+                                          allowFullScreen
+                                        />
+                                        <div className="absolute inset-0 z-10 bg-transparent" />
+                                      </div>
+                                    ) : (
+                                      <div className="w-full h-full flex flex-col items-center justify-center text-neutral-500 text-xs p-4 text-center">
+                                        <Video className="w-8 h-8 mb-2 text-neutral-600" />
+                                        <span>Invalid Reel URL</span>
+                                      </div>
+                                    )}
+                                    
+                                    {/* Sort Badge */}
+                                    <div className="absolute top-2 left-2 z-20 bg-black/70 text-white text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider font-mono">
+                                      Order: {item.sort_order || 0}
+                                    </div>
+                                  </div>
 
-                                  {/* Delete Button Overlay */}
-                                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center p-2">
-                                    <button
-                                      type="button"
-                                      onClick={() => handleDeleteGalleryImage(item.id)}
-                                      className="bg-red-600 hover:bg-red-700 text-white rounded-xl px-3 py-2 flex items-center space-x-1.5 text-xs font-bold uppercase tracking-wider shadow-lg transition-transform hover:scale-105"
-                                      title="Delete Image"
-                                    >
-                                      <Trash2 className="w-4 h-4" />
-                                      <span>Delete</span>
-                                    </button>
+                                  {/* Info and controls */}
+                                  <div className="p-3 bg-neutral-50 border-t border-[#F0EAE1] space-y-2">
+                                    {isEditing ? (
+                                      <div className="space-y-2">
+                                        <input
+                                          type="url"
+                                          className="w-full bg-white border border-neutral-300 text-xs rounded-lg px-2 py-1.5 focus:outline-none focus:border-gold-primary"
+                                          value={editGalleryForm.instagram_url}
+                                          onChange={(e) => setEditGalleryForm({
+                                            ...editGalleryForm,
+                                            instagram_url: e.target.value,
+                                            image_url: e.target.value
+                                          })}
+                                        />
+                                        <div className="flex space-x-1.5">
+                                          <button
+                                            type="button"
+                                            onClick={() => handleSaveEditGallery(item.id)}
+                                            className="flex-1 bg-neutral-900 hover:bg-black text-white text-[10px] font-bold uppercase tracking-wider py-1.5 rounded-md"
+                                          >
+                                            Save
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => setEditingGalleryId(null)}
+                                            className="flex-1 bg-neutral-200 hover:bg-neutral-300 text-neutral-700 text-[10px] font-bold uppercase tracking-wider py-1.5 rounded-md"
+                                          >
+                                            Cancel
+                                          </button>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div className="space-y-2">
+                                        <p className="text-[10px] text-neutral-500 truncate" title={instagramUrl}>
+                                          {instagramUrl}
+                                        </p>
+                                        <div className="flex space-x-1.5">
+                                          <button
+                                            type="button"
+                                            onClick={() => handleStartEditGallery(item)}
+                                            className="flex-1 bg-white hover:bg-neutral-100 border border-neutral-200 text-neutral-800 text-[10px] font-bold uppercase tracking-wider py-1.5 rounded-md flex items-center justify-center space-x-1"
+                                          >
+                                            <Pencil className="w-3 h-3 text-gold-accent" />
+                                            <span>Edit</span>
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleDeleteGalleryImage(item.id)}
+                                            className="flex-1 bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 text-[10px] font-bold uppercase tracking-wider py-1.5 rounded-md flex items-center justify-center space-x-1"
+                                          >
+                                            <Trash2 className="w-3 h-3" />
+                                            <span>Delete</span>
+                                          </button>
+                                        </div>
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
                               );
