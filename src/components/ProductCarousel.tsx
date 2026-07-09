@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 import { useCartStore } from "../store/useCart";
 import { useWebsiteContentStore } from "../store/useWebsiteContent";
 import { useFavoritesStore } from "../store/useFavorites";
+import { ProductCard } from "./ProductCard";
 
 export function ProductCarousel() {
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true, align: "start", slidesToScroll: 1 });
@@ -84,67 +85,7 @@ export function ProductCarousel() {
             <div className="flex -ml-4">
               {bestSellers.map((product) => (
                 <div key={product.id} className="flex-[0_0_100%] min-w-0 sm:flex-[0_0_50%] lg:flex-[0_0_25%] pl-4">
-                  <div className="group bg-white border border-gray-200 overflow-hidden h-full flex flex-col relative">
-                    
-                    {/* Image Container */}
-                    <div className="relative aspect-[4/5] overflow-hidden bg-white">
-                      <Link to={`/product/${product.id}`} className="block w-full h-full">
-                        <img 
-                          src={product.image} 
-                          alt={product.name} 
-                          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 opacity-80 group-hover:opacity-100"
-                          referrerPolicy="no-referrer"
-                        />
-                      </Link>
-                      {/* Hover Actions */}
-                      <div className="absolute inset-x-0 bottom-0 p-4 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out bg-gradient-to-t from-black/90 to-transparent flex justify-center space-x-3">
-                         <button 
-                           onClick={() => toggleFavorite(product)}
-                           className="w-10 h-10 bg-white text-black flex items-center justify-center hover:bg-gold-primary transition-colors hover:text-gray-900 rounded-full"
-                           title={isFavorite(product.id) ? "Remove from wishlist" : "Add to wishlist"}
-                         >
-                           <Heart className={`w-4 h-4 ${isFavorite(product.id) ? "fill-gold-primary text-gold-accent" : "text-gray-900"}`} />
-                         </button>
-                         <Link 
-                           to={`/product/${product.id}`}
-                           className="w-10 h-10 bg-white text-black flex items-center justify-center hover:bg-gold-primary transition-colors hover:text-gray-900 rounded-full"
-                           title="View Details"
-                         >
-                           <Eye className="w-4 h-4" />
-                         </Link>
-                      </div>
-                    </div>
-
-                    {/* Content */}
-                    <div className="p-6 flex flex-col flex-grow text-center">
-                      <p className="text-gold-primary text-xs uppercase tracking-widest mb-2 font-semibold">
-                        {product.category}
-                      </p>
-                      <Link to={`/product/${product.id}`} className="hover:text-gold-accent transition-colors">
-                        <h3 className="font-serif text-xl text-gray-900 mb-2">{product.name}</h3>
-                      </Link>
-                      <div className="flex items-center justify-center space-x-1 mb-4">
-                         <span className="text-gold-accent text-sm">★</span>
-                         <span className="text-gray-600 text-sm">{product.rating || "4.8"}</span>
-                      </div>
-                      <p className="text-gray-900 font-medium mb-6">₹{Number(product.price).toLocaleString()}</p>
-                      <div className="mt-auto">
-                         <button 
-                           onClick={() => addItem({
-                             id: String(product.id),
-                             name: product.name,
-                             category: product.category,
-                             price: Number(product.price),
-                             quantity: 1,
-                             image: product.image
-                           })}
-                           className="w-full py-3 border border-gray-200 text-sm uppercase tracking-wider hover:bg-gold-primary hover:text-black hover:border-gold-primary transition-all duration-300"
-                         >
-                           Add to Cart
-                         </button>
-                      </div>
-                    </div>
-                  </div>
+                  <ProductCard product={product} />
                 </div>
               ))}
             </div>

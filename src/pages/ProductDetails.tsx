@@ -55,14 +55,28 @@ export default function ProductDetails() {
       })
       .then((data) => {
         setProduct(data);
+        
         // Default size options selection
-        if (data.category === "Attars") {
-          setSelectedSize("6ml");
-        } else if (data.category === "Gift Sets") {
-          setSelectedSize("Standard Set");
-        } else {
-          setSelectedSize("50ml");
+        let initialSize = "";
+        let customSizesList: any[] = [];
+        if (data.sizes) {
+          try {
+            customSizesList = typeof data.sizes === "string" ? JSON.parse(data.sizes) : data.sizes;
+          } catch (e) {
+            console.warn(e);
+          }
         }
+
+        if (customSizesList && customSizesList.length > 0) {
+          initialSize = customSizesList[0].size;
+        } else if (data.category === "Attars") {
+          initialSize = "6ml";
+        } else if (data.category === "Gift Sets") {
+          initialSize = "Standard Set";
+        } else {
+          initialSize = "50ml";
+        }
+        setSelectedSize(initialSize);
         setLoading(false);
       })
       .catch((err) => {
@@ -88,9 +102,28 @@ export default function ProductDetails() {
       .catch((err) => console.log("Failed to load recommended products:", err));
   }, [product]);
 
+  const parsedSizes = useMemo(() => {
+    if (!product || !product.sizes) return [];
+    try {
+      const parsed = typeof product.sizes === "string" ? JSON.parse(product.sizes) : product.sizes;
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      console.warn("Failed to parse product.sizes:", e);
+      return [];
+    }
+  }, [product]);
+
   // Handle price dynamic resizing
   const getDisplayPrice = () => {
     if (!product) return 0;
+
+    if (parsedSizes.length > 0) {
+      const matched = parsedSizes.find((s: any) => s.size === selectedSize);
+      if (matched && matched.price) {
+        return parseFloat(matched.price);
+      }
+    }
+
     const basePrice = parseFloat(product.price);
     if (selectedSize === "3ml") return Math.round(basePrice * 0.5);
     if (selectedSize === "6ml") return Math.round(basePrice * 0.75);
@@ -101,6 +134,17 @@ export default function ProductDetails() {
 
   const getDisplayOriginalPrice = () => {
     if (!product) return null;
+
+    if (parsedSizes.length > 0) {
+      const matched = parsedSizes.find((s: any) => s.size === selectedSize);
+      if (matched) {
+        if (matched.originalPrice) {
+          return parseFloat(matched.originalPrice);
+        }
+        return null;
+      }
+    }
+
     const displayPrice = getDisplayPrice();
     if (product.originalPrice) {
       const baseOrig = parseFloat(product.originalPrice);
@@ -259,11 +303,13 @@ export default function ProductDetails() {
   }
 
   const profile = getFragranceProfile(product.name, product.category);
-  const sizeOptions = product.category === "Attars"
-    ? ["3ml", "6ml", "12ml"]
-    : product.category === "Gift Sets"
-      ? ["Standard Set"]
-      : ["50ml", "100ml"];
+  const sizeOptions = parsedSizes.length > 0
+    ? parsedSizes.map((s: any) => s.size)
+    : product.category === "Attars"
+      ? ["3ml", "6ml", "12ml"]
+      : product.category === "Gift Sets"
+        ? ["Standard Set"]
+        : ["50ml", "100ml"];
 
   return (
     <>

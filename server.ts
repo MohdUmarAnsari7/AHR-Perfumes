@@ -218,10 +218,19 @@ async function setupAndSeedDatabase() {
       image TEXT,
       is_best_seller BOOLEAN DEFAULT FALSE,
       stock INTEGER DEFAULT 0,
+      sizes TEXT,
       created_at TIMESTAMP DEFAULT NOW(),
       updated_at TIMESTAMP DEFAULT NOW()
     );
   `);
+
+  // Run migration block to ensure existing databases get the 'sizes' column
+  try {
+    await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS sizes TEXT;`);
+    console.log("Successfully ran ALTER TABLE products ADD COLUMN IF NOT EXISTS sizes TEXT;");
+  } catch (alterErr: any) {
+    console.warn("Could not alter products table to add 'sizes' column, it might already exist or be restricted:", alterErr.message);
+  }
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS cart_items (
@@ -1136,7 +1145,7 @@ async function startServer() {
     try {
       const { 
         name, category, description, price, originalPrice, image, isBestSeller, stock,
-        isVisible, specifications, features, brochureUrl, seoTitle, seoDescription, images
+        isVisible, specifications, features, brochureUrl, seoTitle, seoDescription, images, sizes
       } = req.body;
       
       if (!name || !category || !price) {
@@ -1152,6 +1161,7 @@ async function startServer() {
       const pSpecs = typeof specifications === "string" ? JSON.parse(specifications) : (specifications || {});
       const pFeats = typeof features === "string" ? JSON.parse(features) : (features || []);
       const pImages = typeof images === "string" ? JSON.parse(images) : (images || []);
+      const pSizes = typeof sizes === "string" ? JSON.parse(sizes) : (sizes || null);
       const pImg = image || "https://images.unsplash.com/photo-1594035910387-fea47794261f?q=80&w=1000&auto=format&fit=crop";
 
       if (isDbConfigured && isDbHealthy) {
@@ -1159,11 +1169,12 @@ async function startServer() {
           const insertRes = await pool.query(
             `INSERT INTO products (
               name, category, description, price, original_price, image, is_best_seller, stock,
-              is_visible, specifications, features, brochure_url, seo_title, seo_description, images
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING *`,
+              is_visible, specifications, features, brochure_url, seo_title, seo_description, images, sizes
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING *`,
             [
               name, category, description || `${name} premium scent.`, pPrice, pOrigPrice, pImg, pBest, pStock,
-              pVisible, JSON.stringify(pSpecs), JSON.stringify(pFeats), brochureUrl || null, seoTitle || null, seoDescription || null, JSON.stringify(pImages)
+              pVisible, JSON.stringify(pSpecs), JSON.stringify(pFeats), brochureUrl || null, seoTitle || null, seoDescription || null, JSON.stringify(pImages),
+              pSizes ? JSON.stringify(pSizes) : null
             ]
           );
           return res.status(201).json(mapDbProductToClient(insertRes.rows[0]));
@@ -1191,7 +1202,8 @@ async function startServer() {
         brochureUrl: brochureUrl || null,
         seoTitle: seoTitle || null,
         seoDescription: seoDescription || null,
-        images: pImages
+        images: pImages,
+        sizes: pSizes
       };
       activeProducts.push(newProd);
       saveFallbackData();
@@ -1208,7 +1220,7 @@ async function startServer() {
       const productIdStr = req.params.id;
       const { 
         name, category, description, price, originalPrice, image, isBestSeller, stock,
-        isVisible, specifications, features, brochureUrl, seoTitle, seoDescription, images
+        isVisible, specifications, features, brochureUrl, seoTitle, seoDescription, images, sizes
       } = req.body;
       
       const pPrice = parseFloat(price);
@@ -1220,6 +1232,7 @@ async function startServer() {
       const pSpecs = typeof specifications === "string" ? JSON.parse(specifications) : (specifications || {});
       const pFeats = typeof features === "string" ? JSON.parse(features) : (features || []);
       const pImages = typeof images === "string" ? JSON.parse(images) : (images || []);
+      const pSizes = typeof sizes === "string" ? JSON.parse(sizes) : (sizes || null);
       const pImg = image || "https://images.unsplash.com/photo-1594035910387-fea47794261f?q=80&w=1000&auto=format&fit=crop";
 
       if (isDbConfigured && isDbHealthy) {
@@ -1229,11 +1242,12 @@ async function startServer() {
           try {
             const updateRes = await pool.query(
               `UPDATE products 
-               SET name = $1, category = $2, description = $3, price = $4, original_price = $5, image = $6, is_best_seller = $7, stock = $8, is_visible = $9, specifications = $10, features = $11, brochure_url = $12, seo_title = $13, seo_description = $14, images = $15
-               WHERE id = $16 RETURNING *`,
+               SET name = $1, category = $2, description = $3, price = $4, original_price = $5, image = $6, is_best_seller = $7, stock = $8, is_visible = $9, specifications = $10, features = $11, brochure_url = $12, seo_title = $13, seo_description = $14, images = $15, sizes = $16
+               WHERE id = $17 RETURNING *`,
               [
                 name, category, description, pPrice, pOrigPrice, pImg, pBest, pStock,
                 pVisible, JSON.stringify(pSpecs), JSON.stringify(pFeats), brochureUrl || null, seoTitle || null, seoDescription || null, JSON.stringify(pImages),
+                pSizes ? JSON.stringify(pSizes) : null,
                 productId
               ]
             );
@@ -1266,7 +1280,8 @@ async function startServer() {
           brochureUrl: brochureUrl || null,
           seoTitle: seoTitle || null,
           seoDescription: seoDescription || null,
-          images: pImages
+          images: pImages,
+          sizes: pSizes
         };
         activeProducts[index] = updated;
         saveFallbackData();

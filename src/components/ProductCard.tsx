@@ -1,0 +1,205 @@
+import { useState, useMemo } from "react";
+import { Link } from "react-router-dom";
+import { Heart, Eye, ShoppingCart } from "lucide-react";
+import { useCartStore } from "../store/useCart";
+import { useFavoritesStore } from "../store/useFavorites";
+
+interface ProductCardProps {
+  product: {
+    id: string | number;
+    name: string;
+    category: string;
+    price: string | number;
+    originalPrice?: string | number;
+    rating?: string | number;
+    image: string;
+    sizes?: any;
+  };
+}
+
+export function ProductCard({ product }: ProductCardProps) {
+  const { addItem } = useCartStore();
+  const { toggleFavorite, isFavorite } = useFavoritesStore();
+
+  // Parse custom size pricing from the database
+  const parsedSizes = useMemo(() => {
+    if (!product.sizes) return [];
+    try {
+      const parsed = typeof product.sizes === "string" ? JSON.parse(product.sizes) : product.sizes;
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      console.warn("Failed to parse product.sizes in ProductCard:", e);
+      return [];
+    }
+  }, [product.sizes]);
+
+  // Determine available size options
+  const sizeOptions = useMemo(() => {
+    if (parsedSizes.length > 0) {
+      return parsedSizes.map((s: any) => s.size);
+    }
+    if (product.category === "Attars") {
+      return ["3ml", "6ml", "12ml"];
+    }
+    if (product.category === "Gift Sets") {
+      return ["Standard Set"];
+    }
+    return ["50ml", "100ml"];
+  }, [product.category, parsedSizes]);
+
+  // State for selected size
+  const [selectedSize, setSelectedSize] = useState<string>(() => {
+    return sizeOptions[0] || "";
+  });
+
+  // Calculate dynamic price based on selected size
+  const displayPrice = useMemo(() => {
+    if (parsedSizes.length > 0) {
+      const matched = parsedSizes.find((s: any) => s.size === selectedSize);
+      if (matched && matched.price) {
+        return parseFloat(matched.price);
+      }
+    }
+
+    const basePrice = parseFloat(String(product.price));
+    if (selectedSize === "3ml") return Math.round(basePrice * 0.5);
+    if (selectedSize === "6ml") return Math.round(basePrice * 0.75);
+    if (selectedSize === "12ml") return basePrice;
+    if (selectedSize === "100ml") return Math.round(basePrice * 1.6);
+    return basePrice;
+  }, [product.price, selectedSize, parsedSizes]);
+
+  // Calculate original price (if any)
+  const displayOriginalPrice = useMemo(() => {
+    if (parsedSizes.length > 0) {
+      const matched = parsedSizes.find((s: any) => s.size === selectedSize);
+      if (matched && matched.originalPrice) {
+        return parseFloat(matched.originalPrice);
+      }
+      return null;
+    }
+
+    if (product.originalPrice) {
+      const baseOrig = parseFloat(String(product.originalPrice));
+      if (selectedSize === "3ml") return Math.round(baseOrig * 0.5);
+      if (selectedSize === "6ml") return Math.round(baseOrig * 0.75);
+      if (selectedSize === "12ml") return baseOrig;
+      if (selectedSize === "100ml") return Math.round(baseOrig * 1.6);
+      return baseOrig;
+    }
+    return null;
+  }, [product.originalPrice, selectedSize, parsedSizes]);
+
+  const handleAddToCart = () => {
+    addItem({
+      id: `${product.id}_${selectedSize}`,
+      name: `${product.name} (${selectedSize})`,
+      category: product.category,
+      price: displayPrice,
+      originalPrice: displayOriginalPrice || undefined,
+      quantity: 1,
+      image: product.image,
+      size: selectedSize,
+    });
+  };
+
+  return (
+    <div className="group bg-white border border-stone-200 overflow-hidden h-full flex flex-col relative transition-all duration-300 hover:shadow-md">
+      {/* Image Container */}
+      <div className="relative aspect-[4/5] overflow-hidden bg-white">
+        <Link to={`/product/${product.id}`} className="block w-full h-full">
+          <img 
+            src={product.image} 
+            alt={product.name} 
+            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+            referrerPolicy="no-referrer"
+          />
+        </Link>
+        <div className="absolute top-3 right-3 flex flex-col space-y-2 z-10">
+          <button 
+            onClick={() => toggleFavorite(product)}
+            className="w-8 h-8 bg-white/95 border border-stone-100 text-stone-800 flex items-center justify-center hover:bg-gold-primary hover:text-black hover:border-gold-primary transition-colors rounded-full shadow-sm"
+            title={isFavorite(String(product.id)) ? "Remove from wishlist" : "Add to wishlist"}
+          >
+            <Heart className={`w-3.5 h-3.5 ${isFavorite(String(product.id)) ? "fill-gold-primary text-gold-accent" : "text-stone-800"}`} />
+          </button>
+          <Link 
+            to={`/product/${product.id}`}
+            className="w-8 h-8 bg-white/95 border border-stone-100 text-stone-800 flex items-center justify-center hover:bg-gold-primary hover:text-black hover:border-gold-primary transition-colors rounded-full shadow-sm"
+            title="Quick View"
+          >
+            <Eye className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="p-4 sm:p-5 flex flex-col flex-grow text-center">
+        <p className="text-gold-primary text-[10px] uppercase tracking-widest mb-1.5 font-bold">
+          {product.category}
+        </p>
+        <Link to={`/product/${product.id}`} className="hover:text-gold-accent transition-colors block mb-1">
+          <h3 className="font-serif text-lg text-gray-900 leading-snug line-clamp-2 min-h-[2.5rem] flex items-center justify-center">
+            {product.name}
+          </h3>
+        </Link>
+        
+        {/* Rating */}
+        <div className="flex items-center justify-center space-x-1 mb-2.5">
+          <span className="text-gold-accent text-xs">★</span>
+          <span className="text-gray-600 text-xs">{product.rating || "4.8"}</span>
+        </div>
+
+        {/* Dynamic Size Picker Pills */}
+        <div className="mb-4">
+          <div className="text-[10px] uppercase tracking-wider text-stone-400 font-semibold mb-1">
+            Select Size
+          </div>
+          <div className="flex flex-wrap items-center justify-center gap-1">
+            {sizeOptions.map((size) => (
+              <button
+                key={size}
+                type="button"
+                onClick={() => setSelectedSize(size)}
+                className={`px-2 py-1 text-[10px] font-mono font-bold tracking-tight rounded border transition-all ${
+                  selectedSize === size
+                    ? "bg-neutral-900 border-neutral-900 text-white shadow-xs"
+                    : "bg-white border-neutral-200 text-neutral-600 hover:border-stone-400"
+                }`}
+              >
+                {size}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Price Tag with selected size indication */}
+        <div className="mb-4 mt-auto">
+          <div className="flex items-center justify-center space-x-2">
+            <span className="text-neutral-900 font-serif font-bold text-lg">
+              ₹{displayPrice.toLocaleString()}
+            </span>
+            {displayOriginalPrice && (
+              <span className="text-stone-400 text-xs line-through">
+                ₹{displayOriginalPrice.toLocaleString()}
+              </span>
+            )}
+          </div>
+          <span className="text-[10px] uppercase tracking-widest text-gold-accent font-semibold">
+            Price for {selectedSize}
+          </span>
+        </div>
+
+        <div>
+          <button 
+            onClick={handleAddToCart}
+            className="w-full py-2.5 border border-stone-200 text-xs uppercase tracking-wider hover:bg-gold-primary hover:text-black hover:border-gold-primary transition-all duration-300 flex items-center justify-center space-x-2 font-semibold"
+          >
+            <ShoppingCart className="w-3.5 h-3.5" />
+            <span>Add to Cart</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

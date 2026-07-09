@@ -21,6 +21,7 @@ export const products = pgTable("products", {
   image: text("image"),
   isBestSeller: boolean("is_best_seller").default(false),
   stock: integer("stock").default(0),
+  sizes: text("sizes"), // JSON representation of ml variants and prices e.g. [{"size":"50ml","price":1200,"originalPrice":1500}]
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

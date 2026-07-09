@@ -145,7 +145,8 @@ export default function SupabaseConsole() {
     features: [] as string[],
     brochureUrl: "",
     seoTitle: "",
-    seoDescription: ""
+    seoDescription: "",
+    sizes: [] as { size: string; price: string; originalPrice?: string }[]
   });
   const [tempFeature, setTempFeature] = useState("");
   const [tempSpecKey, setTempSpecKey] = useState("");
@@ -589,7 +590,12 @@ export default function SupabaseConsole() {
       features: prodForm.features,
       brochureUrl: prodForm.brochureUrl,
       seoTitle: prodForm.seoTitle,
-      seoDescription: prodForm.seoDescription
+      seoDescription: prodForm.seoDescription,
+      sizes: prodForm.sizes ? prodForm.sizes.filter(s => s.size && s.price).map(s => ({
+        size: s.size,
+        price: parseFloat(s.price),
+        originalPrice: s.originalPrice ? parseFloat(s.originalPrice) : null
+      })) : []
     };
 
     try {
@@ -648,7 +654,8 @@ export default function SupabaseConsole() {
       features: [],
       brochureUrl: "",
       seoTitle: "",
-      seoDescription: ""
+      seoDescription: "",
+      sizes: []
     });
   };
 
@@ -668,6 +675,11 @@ export default function SupabaseConsole() {
     let pImgs = p.images || [];
     if (typeof pImgs === "string") {
       try { pImgs = JSON.parse(pImgs); } catch (e) { pImgs = []; }
+    }
+
+    let sizes = p.sizes || [];
+    if (typeof sizes === "string") {
+      try { sizes = JSON.parse(sizes); } catch (e) { sizes = []; }
     }
 
     setProdForm({
@@ -693,7 +705,12 @@ export default function SupabaseConsole() {
       features: Array.isArray(feats) ? feats : [],
       brochureUrl: p.brochure_url || p.brochureUrl || "",
       seoTitle: p.seo_title || p.seoTitle || "",
-      seoDescription: p.seo_description || p.seoDescription || ""
+      seoDescription: p.seo_description || p.seoDescription || "",
+      sizes: Array.isArray(sizes) ? sizes.map((s: any) => ({
+        size: s.size || "",
+        price: String(s.price || ""),
+        originalPrice: s.originalPrice ? String(s.originalPrice) : ""
+      })) : []
     });
   };
 
@@ -1346,6 +1363,104 @@ export default function SupabaseConsole() {
                               <span className="text-xs uppercase tracking-widest text-neutral-600 font-bold">Visible on Website</span>
                             </label>
                           </div>
+                        </div>
+
+                        {/* Volume Sizes & Custom Pricing (INR according to ml/volume) */}
+                        <div className="bg-[#FAF9F6] border border-[#F0EAE1] p-5 rounded-xl space-y-4">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <div>
+                              <h4 className="text-xs uppercase tracking-wider font-bold text-neutral-700 flex items-center space-x-2">
+                                <span>Volume Sizes & Custom Pricing (ml)</span>
+                                <span className="bg-gold-primary text-neutral-900 text-[10px] px-2 py-0.5 rounded font-mono font-bold">New</span>
+                              </h4>
+                              <p className="text-[11px] text-neutral-500 mt-0.5">Define exact prices for volume options (e.g. 3ml, 6ml, 12ml, 50ml, 100ml). If configured, these override generic auto-scaling multipliers.</p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const currentSizes = prodForm.sizes || [];
+                                setProdForm({
+                                  ...prodForm,
+                                  sizes: [...currentSizes, { size: "50ml", price: "", originalPrice: "" }]
+                                });
+                              }}
+                              className="bg-neutral-900 hover:bg-neutral-800 text-white text-[11px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-lg flex items-center space-x-1 self-start sm:self-center transition-colors"
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                              <span>Add ML Size Price</span>
+                            </button>
+                          </div>
+
+                          {prodForm.sizes && prodForm.sizes.length > 0 ? (
+                            <div className="space-y-3">
+                              {prodForm.sizes.map((s, idx) => (
+                                <div key={idx} className="flex flex-col sm:flex-row items-end sm:items-center gap-3 bg-white p-3 border border-neutral-200 rounded-lg">
+                                  <div className="w-full sm:w-1/3">
+                                    <label className="block text-[10px] uppercase tracking-wider text-neutral-500 font-bold mb-1">Volume Size (e.g., 50ml)</label>
+                                    <input
+                                      type="text"
+                                      placeholder="e.g. 12ml or 50ml"
+                                      required
+                                      value={s.size}
+                                      onChange={(e) => {
+                                        const updated = [...prodForm.sizes];
+                                        updated[idx].size = e.target.value;
+                                        setProdForm({ ...prodForm, sizes: updated });
+                                      }}
+                                      className="w-full bg-neutral-50 border border-neutral-200 text-xs rounded-md px-3 py-1.5 focus:outline-none focus:border-gold-primary"
+                                    />
+                                  </div>
+
+                                  <div className="w-full sm:w-1/3">
+                                    <label className="block text-[10px] uppercase tracking-wider text-neutral-500 font-bold mb-1">Custom Price (INR)</label>
+                                    <input
+                                      type="number"
+                                      placeholder="INR Price"
+                                      required
+                                      value={s.price}
+                                      onChange={(e) => {
+                                        const updated = [...prodForm.sizes];
+                                        updated[idx].price = e.target.value;
+                                        setProdForm({ ...prodForm, sizes: updated });
+                                      }}
+                                      className="w-full bg-neutral-50 border border-neutral-200 text-xs rounded-md px-3 py-1.5 focus:outline-none focus:border-gold-primary"
+                                    />
+                                  </div>
+
+                                  <div className="w-full sm:w-1/3">
+                                    <label className="block text-[10px] uppercase tracking-wider text-neutral-500 font-bold mb-1">Orig. Price (INR / Optional)</label>
+                                    <input
+                                      type="number"
+                                      placeholder="Original Price"
+                                      value={s.originalPrice || ""}
+                                      onChange={(e) => {
+                                        const updated = [...prodForm.sizes];
+                                        updated[idx].originalPrice = e.target.value;
+                                        setProdForm({ ...prodForm, sizes: updated });
+                                      }}
+                                      className="w-full bg-neutral-50 border border-neutral-200 text-xs rounded-md px-3 py-1.5 focus:outline-none focus:border-gold-primary"
+                                    />
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const updated = prodForm.sizes.filter((_, i) => i !== idx);
+                                      setProdForm({ ...prodForm, sizes: updated });
+                                    }}
+                                    className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded"
+                                    title="Remove Option"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="text-center py-5 text-neutral-400 text-xs border border-dashed border-neutral-200 rounded-lg bg-white">
+                              No custom size pricing tiers configured yet. Using default category-based auto-multipliers.
+                            </div>
+                          )}
                         </div>
 
                         {/* Description */}
