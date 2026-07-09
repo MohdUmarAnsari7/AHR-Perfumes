@@ -3,7 +3,7 @@ import { Helmet } from "react-helmet-async";
 import { useBusinessInfoStore } from "../store/useBusinessInfo";
 import { useWebsiteContentStore } from "../store/useWebsiteContent";
 import { motion } from "motion/react";
-import { Camera } from "lucide-react";
+import { Video, Instagram, ExternalLink } from "lucide-react";
 
 export default function Gallery() {
   const [loadedImages, setLoadedImages] = useState<any[]>([]);
@@ -32,11 +32,17 @@ export default function Gallery() {
       });
   }, []);
 
+  const getReelShortcode = (url: string) => {
+    if (!url) return "";
+    const match = url.match(/(?:instagram\.com\/(?:p|reel|tv)\/)([a-zA-Z0-9_\-]+)/i);
+    return match ? match[1] : "";
+  };
+
   return (
     <>
       <Helmet>
-        <title>Visual Gallery | {info.name}</title>
-        <meta name="description" content="Explore our visual gallery of premium attars, bakhoor, and luxury perfumes from A.H.R Perfumes." />
+        <title>Instagram Reels Gallery | {info.name}</title>
+        <meta name="description" content="Explore our visual gallery of curated Instagram Reels showcasing premium attars, bakhoor, and luxury perfumes from A.H.R Perfumes." />
       </Helmet>
 
       {/* Hero Section */}
@@ -83,15 +89,30 @@ export default function Gallery() {
               animate={{ opacity: 1 }}
               className="text-center py-20 bg-white border border-[#F0EAE1] max-w-2xl mx-auto px-6 rounded-3xl shadow-xs"
             >
-              <Camera className="w-12 h-12 text-neutral-300 mx-auto mb-4 stroke-[1.5]" />
+              <Video className="w-12 h-12 text-neutral-300 mx-auto mb-4 stroke-[1.5]" />
               <h3 className="font-serif text-2xl text-gray-900 mb-2">Our Visual Story is curated.</h3>
               <p className="text-gray-500 text-sm max-w-md mx-auto mb-6">
-                No images have been added to the gallery yet. Check back soon or visit our Instagram to explore our premium collection.
+                No Instagram Reels have been added to the gallery yet. Check back soon or visit our official Instagram page to explore our premium collection.
               </p>
+              <a
+                href="https://www.instagram.com/a.h.r.perfumes_/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center space-x-2 bg-neutral-900 text-white hover:bg-gold-primary hover:text-black transition-colors px-6 py-3 rounded-xl text-xs font-bold uppercase tracking-wider"
+              >
+                <Instagram className="w-4 h-4" />
+                <span>Visit Instagram</span>
+              </a>
             </motion.div>
           ) : (
             <div className="columns-2 sm:columns-2 lg:columns-3 xl:columns-4 gap-3 sm:gap-6 space-y-3 sm:space-y-6">
               {loadedImages.map((img, idx) => {
+                const instagramUrl = img.instagram_url || img.instagramUrl || img.image_url || img.imageUrl || "";
+                const shortcode = getReelShortcode(instagramUrl);
+                if (!shortcode) return null;
+
+                const embedUrl = `https://www.instagram.com/reel/${shortcode}/embed/`;
+
                 // Organic top-margins to scatter and stagger the masonry column cards
                 const offsets = ["mt-0", "mt-3 sm:mt-6", "mt-1.5 sm:mt-3", "mt-4 sm:mt-8"];
                 const staggerClass = offsets[idx % offsets.length];
@@ -105,20 +126,38 @@ export default function Gallery() {
                     transition={{ duration: 0.5, delay: (idx % 3) * 0.05 }}
                     className={`break-inside-avoid relative group overflow-hidden bg-white rounded-xl sm:rounded-2xl shadow-xs hover:shadow-md transition-all duration-300 ${staggerClass}`}
                   >
-                    <a 
-                      href={img.instagram_url || img.instagramUrl || "https://www.instagram.com/a.h.r.perfumes_/"} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="block overflow-hidden relative rounded-xl sm:rounded-2xl"
-                    >
-                      <img 
-                        src={img.image_url || img.imageUrl} 
-                        alt="Gallery Visual" 
-                        className="w-full h-auto object-cover opacity-95 group-hover:opacity-100 group-hover:scale-104 transition-all duration-700 rounded-xl sm:rounded-2xl"
-                        referrerPolicy="no-referrer"
+                    <div className="relative aspect-[9/16] overflow-hidden rounded-xl sm:rounded-2xl bg-neutral-950">
+                      {/* Embedded Reel Frame */}
+                      <iframe
+                        src={embedUrl}
+                        className="absolute border-0 select-none pointer-events-none"
+                        style={{
+                          top: "-45px",
+                          left: "-1px",
+                          width: "calc(100% + 2px)",
+                          height: "calc(100% + 105px)",
+                        }}
+                        scrolling="no"
+                        allowFullScreen
                       />
-                      <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-10 transition-opacity duration-300 rounded-xl sm:rounded-2xl" />
-                    </a>
+
+                      {/* Transparent overlay that redirects user on click */}
+                      <div 
+                        onClick={() => window.open(instagramUrl, "_blank")}
+                        className="absolute inset-0 z-10 cursor-pointer bg-black/0 hover:bg-black/10 transition-colors duration-300 flex flex-col justify-between p-4"
+                      >
+                        {/* Hover elements */}
+                        <div className="self-end bg-black/50 backdrop-blur-xs text-gold-accent p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 shadow-sm">
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </div>
+                        <div className="self-center bg-black/40 backdrop-blur-xs text-white px-3 py-1.5 rounded-full opacity-60 group-hover:opacity-100 transition-opacity flex items-center space-x-1">
+                          <svg className="w-3 h-3 fill-current" viewBox="0 0 24 24">
+                            <path d="M8 5v14l11-7z" stroke="currentColor" strokeWidth="1" />
+                          </svg>
+                          <span className="text-[10px] uppercase tracking-widest font-bold">Watch Reel</span>
+                        </div>
+                      </div>
+                    </div>
                   </motion.div>
                 );
               })}
