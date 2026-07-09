@@ -207,6 +207,37 @@ async function setupAndSeedDatabase() {
     );
   `);
 
+  // Add additional columns to users if missing
+  try {
+    await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS shipping_address TEXT;");
+    await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS city VARCHAR(100);");
+    await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS state VARCHAR(100);");
+    await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS zip VARCHAR(20);");
+    await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS country VARCHAR(100);");
+    await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS preferences TEXT;");
+  } catch (userColErr: any) {
+    console.warn("Could not alter users table columns:", userColErr.message);
+  }
+
+  // Create orders table
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS orders (
+      id SERIAL PRIMARY KEY,
+      user_id VARCHAR(255) NOT NULL,
+      order_date TIMESTAMP DEFAULT NOW(),
+      status VARCHAR(50) DEFAULT 'Processing',
+      items JSONB NOT NULL,
+      total_amount NUMERIC(10, 2) NOT NULL,
+      shipping_address TEXT,
+      city VARCHAR(100),
+      state VARCHAR(100),
+      zip VARCHAR(20),
+      country VARCHAR(100),
+      payment_method VARCHAR(50) DEFAULT 'UPI',
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+  `);
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS products (
       id SERIAL PRIMARY KEY,
@@ -726,6 +757,7 @@ async function startServer() {
   let activeGalleryImages: any[] = [];
   let inMemoryUsers: any[] = [];
   let inMemorySessions: Record<string, any> = {};
+  let inMemoryOrders: any[] = [];
   let activeWebsiteContent: Record<string, any> = {
     homepage: {
       heroHeading: "Premium Attars Crafted With Tradition",
@@ -866,6 +898,10 @@ async function startServer() {
           if (parsed.inMemorySessions) {
             inMemorySessions = parsed.inMemorySessions;
           }
+          if (parsed.inMemoryOrders) {
+            inMemoryOrders.length = 0;
+            inMemoryOrders.push(...parsed.inMemoryOrders);
+          }
           console.log("[Fallback Store] Loaded persistent fallback data from disk cache.");
         } catch (parseErr: any) {
           console.error("[Fallback Store] Corrupted fallback data detected. Resetting store to avoid crash and log spam. Error:", parseErr.message);
@@ -895,7 +931,8 @@ async function startServer() {
         activeGalleryImages,
         activeWebsiteContent,
         inMemoryUsers,
-        inMemorySessions
+        inMemorySessions,
+        inMemoryOrders
       };
       const jsonString = JSON.stringify(data, null, 2);
       fs.writeFileSync(FALLBACK_STORE_PATH, jsonString, "utf8");
@@ -1734,6 +1771,241 @@ async function startServer() {
       res.json({ success: true, message: "Logged out successfully." });
     } catch (err: any) {
       res.status(500).json({ error: "Failed to log out.", details: err.message });
+    }
+  });
+
+  // --- USER PROFILE & ORDERS API ---
+  app.get("/api/user/profile", async (req, res) => {
+    try {
+      const authUser = await getAuthenticatedUser(req);
+      if (!authUser) {
+        return res.status(401).json({ error: "Unauthorized. Please login again." });
+      }
+
+      // Fetch fresh details from database if configured and healthy
+      let freshUser = authUser;
+      if (isDbConfigured && isDbHealthy) {
+        try {
+          const dbResult = await pool.query("SELECT * FROM users WHERE id = $1", [authUser.id]);
+          if (dbResult.rows.length > 0) {
+            freshUser = dbResult.rows[0];
+            // Format camelCase properties for frontend consistency if needed
+            if (freshUser.password_hash) {
+              freshUser.passwordHash = freshUser.password_hash;
+            }
+            if (freshUser.created_at) {
+              freshUser.createdAt = freshUser.created_at;
+            }
+            if (freshUser.updated_at) {
+              freshUser.updatedAt = freshUser.updated_at;
+            }
+          }
+        } catch (dbErr) {
+          console.warn("Failed to fetch fresh user from database:", dbErr);
+        }
+      } else {
+        const local = inMemoryUsers.find(u => u.id === authUser.id || u.email === authUser.email);
+        if (local) {
+          freshUser = local;
+        }
+      }
+
+      res.json({ success: true, user: freshUser });
+    } catch (err: any) {
+      res.status(500).json({ error: "Failed to fetch profile.", details: err.message });
+    }
+  });
+
+  app.put("/api/user/profile", async (req, res) => {
+    try {
+      const authUser = await getAuthenticatedUser(req);
+      if (!authUser) {
+        return res.status(401).json({ error: "Unauthorized. Please login again." });
+      }
+
+      const { name, mobile, shipping_address, city, state, zip, country, preferences } = req.body;
+
+      if (!mobile) {
+        return res.status(400).json({ error: "Mobile number is required." });
+      }
+
+      // Update in DB if configured
+      let updatedUser = { ...authUser, name, mobile, shipping_address, city, state, zip, country, preferences };
+      if (isDbConfigured && isDbHealthy) {
+        try {
+          const dbResult = await pool.query(
+            `UPDATE users SET 
+              name = $1, 
+              mobile = $2, 
+              shipping_address = $3, 
+              city = $4, 
+              state = $5, 
+              zip = $6, 
+              country = $7, 
+              preferences = $8,
+              updated_at = NOW()
+             WHERE id = $9 RETURNING *`,
+            [name || null, mobile, shipping_address || null, city || null, state || null, zip || null, country || null, preferences || null, authUser.id]
+          );
+          if (dbResult.rows.length > 0) {
+            updatedUser = dbResult.rows[0];
+          }
+        } catch (dbErr: any) {
+          console.error("Failed to update user in DB:", dbErr.message);
+          return res.status(500).json({ error: "Database update failed.", details: dbErr.message });
+        }
+      }
+
+      // Sync inMemoryUsers
+      const localIdx = inMemoryUsers.findIndex(u => u.id === authUser.id || u.email === authUser.email);
+      if (localIdx !== -1) {
+        inMemoryUsers[localIdx] = {
+          ...inMemoryUsers[localIdx],
+          name,
+          mobile,
+          shipping_address,
+          city,
+          state,
+          zip,
+          country,
+          preferences,
+          updatedAt: new Date()
+        };
+      } else {
+        inMemoryUsers.push({
+          id: authUser.id,
+          email: authUser.email,
+          name,
+          mobile,
+          shipping_address,
+          city,
+          state,
+          zip,
+          country,
+          preferences,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        });
+      }
+
+      // Sync active session token user object
+      let token = req.headers["x-session-token"] as string;
+      if (!token && req.headers.authorization) {
+        const parts = req.headers.authorization.split(" ");
+        if (parts[0] === "Bearer") {
+          token = parts[1];
+        }
+      }
+      if (token && inMemorySessions[token]) {
+        inMemorySessions[token].user = {
+          ...inMemorySessions[token].user,
+          name,
+          mobile,
+          shipping_address,
+          city,
+          state,
+          zip,
+          country,
+          preferences
+        };
+      }
+
+      await saveFallbackData();
+
+      res.json({ success: true, message: "Profile updated successfully.", user: updatedUser });
+    } catch (err: any) {
+      res.status(500).json({ error: "Failed to update profile.", details: err.message });
+    }
+  });
+
+  app.get("/api/user/orders", async (req, res) => {
+    try {
+      const authUser = await getAuthenticatedUser(req);
+      if (!authUser) {
+        return res.status(401).json({ error: "Unauthorized. Please login again to view orders." });
+      }
+
+      let userOrders = [];
+      if (isDbConfigured && isDbHealthy) {
+        try {
+          const dbResult = await pool.query(
+            "SELECT * FROM orders WHERE user_id = $1 ORDER BY id DESC",
+            [String(authUser.id)]
+          );
+          userOrders = dbResult.rows;
+        } catch (dbErr) {
+          console.warn("Failed to fetch orders from database, falling back to local memory:", dbErr);
+          userOrders = inMemoryOrders.filter(o => String(o.user_id) === String(authUser.id));
+        }
+      } else {
+        userOrders = inMemoryOrders.filter(o => String(o.user_id) === String(authUser.id));
+      }
+
+      // Sort descending by order date
+      userOrders.sort((a: any, b: any) => {
+        const dateA = new Date(a.order_date || a.createdAt || 0).getTime();
+        const dateB = new Date(b.order_date || b.createdAt || 0).getTime();
+        return dateB - dateA;
+      });
+
+      res.json({ success: true, orders: userOrders });
+    } catch (err: any) {
+      res.status(500).json({ error: "Failed to fetch orders.", details: err.message });
+    }
+  });
+
+  app.post("/api/user/orders", async (req, res) => {
+    try {
+      const authUser = await getAuthenticatedUser(req);
+      const userId = authUser ? String(authUser.id) : (req.body.guestId || "guest_" + Math.random().toString(36).substring(2, 8));
+
+      const { items, total_amount, shipping_address, city, state, zip, country, payment_method } = req.body;
+
+      if (!items || !Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ error: "Cannot place order with empty cart." });
+      }
+
+      let createdOrder = null;
+      if (isDbConfigured && isDbHealthy) {
+        try {
+          const dbResult = await pool.query(
+            `INSERT INTO orders (user_id, items, total_amount, shipping_address, city, state, zip, country, payment_method, status, order_date)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'Processing', NOW()) RETURNING *`,
+            [userId, JSON.stringify(items), total_amount, shipping_address || null, city || null, state || null, zip || null, country || null, payment_method || "UPI"]
+          );
+          if (dbResult.rows.length > 0) {
+            createdOrder = dbResult.rows[0];
+          }
+        } catch (dbErr: any) {
+          console.error("Database order insertion failed, falling back to memory:", dbErr.message);
+        }
+      }
+
+      if (!createdOrder) {
+        const fallbackId = inMemoryOrders.length + 10001 + Math.floor(Math.random() * 9000);
+        createdOrder = {
+          id: fallbackId,
+          user_id: userId,
+          order_date: new Date(),
+          status: 'Processing',
+          items,
+          total_amount,
+          shipping_address,
+          city,
+          state,
+          zip,
+          country,
+          payment_method,
+          created_at: new Date()
+        };
+        inMemoryOrders.push(createdOrder);
+      }
+
+      await saveFallbackData();
+
+      res.json({ success: true, message: "Order placed successfully.", order: createdOrder });
+    } catch (err: any) {
+      res.status(500).json({ error: "Failed to place order.", details: err.message });
     }
   });
 

@@ -7,6 +7,14 @@ export interface CustomUser {
   mobile: string;
   name?: string;
   role: string;
+  shipping_address?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+  country?: string;
+  preferences?: string;
+  createdAt?: string | Date;
+  updatedAt?: string | Date;
   user_metadata?: {
     full_name?: string;
   };
@@ -32,6 +40,17 @@ interface AuthState {
   signOut: () => Promise<void>;
   initialize: () => void;
   getUserId: () => string;
+  updateProfile: (params: {
+    name?: string;
+    mobile: string;
+    shipping_address?: string;
+    city?: string;
+    state?: string;
+    zip?: string;
+    country?: string;
+    preferences?: string;
+  }) => Promise<void>;
+  fetchFreshProfile: () => Promise<void>;
 }
 
 // Generate an anonymous fallback guest ID
@@ -211,6 +230,66 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         localStorage.removeItem("ahr_session_token");
         localStorage.removeItem("ahr_user");
       }
+    }
+  },
+
+  updateProfile: async (params) => {
+    set({ loading: true, error: null });
+    const token = get().sessionToken;
+    try {
+      const res = await fetch("/api/user/profile", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "x-session-token": token || ""
+        },
+        body: JSON.stringify(params)
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to update profile.");
+      }
+
+      const updatedUser: CustomUser = {
+        ...data.user,
+        user_metadata: {
+          full_name: data.user.name || data.user.email.split("@")[0]
+        }
+      };
+
+      localStorage.setItem("ahr_user", JSON.stringify(updatedUser));
+      set({ user: updatedUser, loading: false });
+    } catch (err: any) {
+      set({ error: err.message || "Failed to update profile.", loading: false });
+      throw err;
+    }
+  },
+
+  fetchFreshProfile: async () => {
+    const token = get().sessionToken;
+    if (!token) return;
+    try {
+      const res = await fetch("/api/user/profile", {
+        headers: {
+          "x-session-token": token
+        }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.user) {
+          const freshUser: CustomUser = {
+            ...data.user,
+            user_metadata: {
+              full_name: data.user.name || data.user.email.split("@")[0]
+            }
+          };
+          set({ user: freshUser });
+          localStorage.setItem("ahr_user", JSON.stringify(freshUser));
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to fetch fresh profile details:", e);
     }
   }
 }));

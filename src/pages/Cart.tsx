@@ -1,4 +1,5 @@
 import { Helmet } from "react-helmet-async";
+import { useNavigate } from "react-router-dom";
 import { useBusinessInfoStore } from "../store/useBusinessInfo";
 import { useCartStore } from "../store/useCart";
 import { CartHero } from "../components/cart/CartHero";
@@ -10,6 +11,7 @@ import { BadgePercent, Truck, ShieldCheck, Droplet, Star } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 
 export default function Cart() {
+  const navigate = useNavigate();
   const { items, getTotal } = useCartStore();
   const hasItems = items.length > 0;
   const total = getTotal();
@@ -109,7 +111,10 @@ export default function Cart() {
                 ₹{total.toLocaleString()}
              </div>
           </div>
-          <button className="w-full bg-gradient-to-r from-[#B68D40] via-[#F5E6C8] to-[#B68D40] text-black font-semibold uppercase tracking-widest text-xs py-4">
+          <button 
+            onClick={() => navigate("/checkout")}
+            className="w-full bg-gradient-to-r from-[#B68D40] via-[#F5E6C8] to-[#B68D40] text-black font-semibold uppercase tracking-widest text-xs py-4"
+          >
             Proceed To Checkout
           </button>
         </div>

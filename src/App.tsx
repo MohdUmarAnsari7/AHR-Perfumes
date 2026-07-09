@@ -19,6 +19,7 @@ import Gallery from "./pages/Gallery";
 import SupabaseConsole from "./pages/SupabaseConsole";
 import Auth from "./pages/Auth";
 import ProductDetails from "./pages/ProductDetails";
+import Checkout from "./pages/Checkout";
 
 export default function App() {
   const fetchInfo = useBusinessInfoStore((state) => state.fetchInfo);
@@ -43,6 +44,7 @@ export default function App() {
             <Route path="gallery" element={<Gallery />} />
             <Route path="contact" element={<Contact />} />
             <Route path="cart" element={<Cart />} />
+            <Route path="checkout" element={<Checkout />} />
             <Route path="account" element={<Auth />} />
             <Route path="auth" element={<Auth />} />
             <Route path="supabase" element={<SupabaseConsole />} />

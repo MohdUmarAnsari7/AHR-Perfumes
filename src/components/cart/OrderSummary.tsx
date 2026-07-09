@@ -1,10 +1,11 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { motion } from "motion/react";
 import { ShieldCheck, CreditCard, Wallet, IndianRupee } from "lucide-react";
 import { useCartStore } from "../../store/useCart";
 
 export function OrderSummary() {
+  const navigate = useNavigate();
   const { getSubtotal, getTotal } = useCartStore();
   const subtotal = getSubtotal();
   const total = getTotal();
@@ -72,7 +73,10 @@ export function OrderSummary() {
         )}
       </div>
 
-      <button className="w-full bg-gradient-to-r from-[#B68D40] via-[#F5E6C8] to-[#B68D40] text-black font-semibold uppercase tracking-widest text-sm py-4 mb-8 hover:opacity-90 transition-opacity">
+      <button 
+        onClick={() => navigate("/checkout")}
+        className="w-full bg-gradient-to-r from-[#B68D40] via-[#F5E6C8] to-[#B68D40] text-black font-semibold uppercase tracking-widest text-sm py-4 mb-8 hover:opacity-90 transition-opacity"
+      >
         Proceed To Checkout
       </button>
 
