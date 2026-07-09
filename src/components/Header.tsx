@@ -21,7 +21,18 @@ const NAV_LINKS = [
 export function Header() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const items = useCartStore((state) => state.items);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   const itemsCount = items.reduce((total, item) => total + item.quantity, 0);
   const { isLoggedIn, user, signOut, openAuthModal } = useAuthStore();
   const info = useBusinessInfoStore((state) => state.info);
@@ -44,12 +55,12 @@ export function Header() {
     <>
       <header
         className={cn(
-          "fixed top-0 left-0 right-0 z-50 transition-all duration-300 border-b border-transparent",
+          "absolute lg:fixed top-0 left-0 right-0 z-50 transition-all duration-300 border-b border-transparent",
           isScrolled
-            ? "bg-white/95 backdrop-blur-md py-3 shadow-lg border-gray-200"
-            : "bg-white/70 backdrop-blur-sm py-5" // Ajmal uses a solid light header usually
+            ? "bg-white/95 backdrop-blur-md py-3 lg:shadow-lg lg:border-gray-200"
+            : "bg-white/70 backdrop-blur-sm py-5"
         )}
-        style={{ top: isScrolled ? "0" : "auto" }}
+        style={{ top: isScrolled ? (isMobile ? "auto" : "0") : "auto" }}
       >
       <div className="max-w-[1440px] 2xl:max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16">
         <div className="flex items-center justify-between">

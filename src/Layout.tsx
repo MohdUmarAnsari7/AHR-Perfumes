@@ -3,6 +3,7 @@ import { Outlet } from "react-router-dom";
 import { TopBar } from "./components/TopBar";
 import { Header } from "./components/Header";
 import { Footer } from "./components/Footer";
+import { BottomNavigation } from "./components/BottomNavigation";
 import { SEOHead } from "./components/SEOHead";
 import { useAuthStore } from "./store/useAuth";
 import { useFavoritesStore } from "./store/useFavorites";
@@ -57,10 +58,11 @@ export default function Layout() {
       <SEOHead />
       <TopBar />
       <Header />
-      <main className="flex-grow">
+      <main className="flex-grow pb-16 sm:pb-0">
         <Outlet />
       </main>
       <Footer />
+      <BottomNavigation />
       <WishlistDrawer />
       <AuthModal />
     </div>
