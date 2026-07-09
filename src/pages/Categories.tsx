@@ -80,7 +80,7 @@ export default function Categories() {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-2 gap-3 sm:gap-8">
+            <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-2 gap-4 sm:gap-8">
               {loadedCategories.map((category, idx) => (
                 <motion.div 
                   initial={{ opacity: 0, y: 20 }}
@@ -88,24 +88,35 @@ export default function Categories() {
                   viewport={{ once: true, amount: 0.15 }}
                   transition={{ delay: idx * 0.05, duration: 0.5 }}
                   key={category.title} 
-                  className="relative aspect-[3/4] sm:aspect-[16/10] group overflow-hidden bg-neutral-950 border border-gray-200 block rounded-xl sm:rounded-none"
+                  className="flex flex-col group"
                 >
-                  <img 
-                    src={category.image} 
-                    alt={category.title} 
-                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105 opacity-70 group-hover:opacity-85"
-                    referrerPolicy="no-referrer"
-                  />
-                  <div className="absolute inset-0 bg-black/45 sm:bg-black/40 group-hover:bg-black/55 transition-colors duration-300"></div>
+                  <Link 
+                    to={`/shop?category=${encodeURIComponent(category.title)}`} 
+                    className="relative aspect-[3/4] sm:aspect-[16/10] overflow-hidden bg-neutral-900 border border-gray-200 block rounded-xl sm:rounded-none shadow-xs hover:shadow-md transition-shadow duration-300"
+                  >
+                    <img 
+                      src={category.image} 
+                      alt={category.title} 
+                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105 opacity-80 group-hover:opacity-95"
+                      referrerPolicy="no-referrer"
+                    />
+                    <div className="absolute inset-0 bg-black/10 group-hover:bg-black/20 transition-colors duration-300"></div>
+                  </Link>
                   
-                  <div className="absolute inset-0 p-3 sm:p-10 flex flex-col items-center justify-center text-center z-10">
-                     <h3 className="font-serif text-lg sm:text-2xl md:text-4xl text-white mb-2 sm:mb-4 uppercase tracking-widest leading-tight drop-shadow-md">{category.title}</h3>
-                     <p className="text-gray-200 font-light text-[11px] sm:text-xs md:text-base mb-4 sm:mb-8 max-w-sm hidden sm:block">{category.description}</p>
-                     <div>
-                       <Link to={`/shop?category=${encodeURIComponent(category.title)}`} className="inline-block bg-white hover:bg-gold-primary text-gray-900 hover:text-white px-4 py-1.5 sm:px-8 sm:py-3 text-[10px] sm:text-sm font-semibold uppercase tracking-widest transition-all duration-300 rounded-sm shadow-sm active:scale-95">
-                         Shop Now
-                       </Link>
-                     </div>
+                  <div className="mt-3 sm:mt-5 text-center px-1">
+                    <Link 
+                      to={`/shop?category=${encodeURIComponent(category.title)}`}
+                      className="hover:text-gold-accent transition-colors block"
+                    >
+                      <h3 className="font-serif text-sm sm:text-xl md:text-3xl text-stone-900 font-bold uppercase tracking-wider leading-tight">
+                        {category.title}
+                      </h3>
+                    </Link>
+                    {category.description && (
+                      <p className="text-stone-500 font-light text-[10px] sm:text-xs md:text-sm mt-1.5 max-w-sm mx-auto line-clamp-1 sm:line-clamp-2">
+                        {category.description}
+                      </p>
+                    )}
                   </div>
                 </motion.div>
               ))}
