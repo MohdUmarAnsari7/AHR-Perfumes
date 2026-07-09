@@ -48,7 +48,7 @@ export function Hero() {
             <img
               src={slides[currentSlide].image}
               alt={slides[currentSlide].title}
-              className={`w-full h-full object-cover opacity-60 ${slides[currentSlide].mobileImage ? "hidden md:block" : "block"}`}
+              className={`w-full h-full object-cover opacity-100 ${slides[currentSlide].mobileImage ? "hidden md:block" : "block"}`}
               referrerPolicy="no-referrer"
             />
             {/* Mobile Banner Image */}
@@ -56,13 +56,12 @@ export function Hero() {
               <img
                 src={slides[currentSlide].mobileImage}
                 alt={slides[currentSlide].title}
-                className="w-full h-full object-cover opacity-60 md:hidden block"
+                className="w-full h-full object-cover opacity-100 md:hidden block"
                 referrerPolicy="no-referrer"
               />
             )}
-            {/* Gradient Overlay */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-black/80" />
-            <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent" />
+            {/* Soft, non-obscuring gradient overlay for text readability without darkening the whole image */}
+            <div className="absolute inset-0 bg-black/10 bg-gradient-to-t from-black/40 via-transparent to-black/20" />
           </div>
 
           {/* Content */}
@@ -72,7 +71,7 @@ export function Hero() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3, duration: 0.8 }}
-                className="uppercase tracking-[0.3em] text-gold-accent mb-6 text-sm font-medium"
+                className="uppercase tracking-[0.3em] text-gold-accent mb-6 text-sm font-semibold [text-shadow:_0_2px_8px_rgba(0,0,0,0.8)]"
               >
                 {slides[currentSlide].subtitle}
               </motion.p>
@@ -81,7 +80,7 @@ export function Hero() {
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.5, duration: 0.8 }}
-                className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-serif text-white mb-10 leading-tight"
+                className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-serif text-white mb-10 leading-tight [text-shadow:_0_4px_16px_rgba(0,0,0,0.9)]"
               >
                 {slides[currentSlide].title}
               </motion.h1>
