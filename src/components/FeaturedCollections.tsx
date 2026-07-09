@@ -53,20 +53,38 @@ export function FeaturedCollections() {
          <h2 className="font-serif text-3xl md:text-5xl text-gray-900 mb-2">{title}</h2>
          <p className="text-xs text-neutral-500 uppercase tracking-widest mb-6">{subtitle}</p>
          
-         <div className="flex flex-wrap justify-center gap-4 md:gap-8">
+         {/* Mobile Tab Control: Elegant, clean, non-overlapping grid */}
+         <div className="md:hidden max-w-sm mx-auto bg-[#F0EAE1]/50 p-1.5 rounded-xl grid grid-cols-2 gap-1.5 mb-2 shadow-xs border border-stone-200">
             {tabs.map((tab, idx) => (
               <button
                 key={idx}
                 onClick={() => setActiveTab(idx)}
-                className={`text-sm uppercase tracking-widest pb-2 relative transition-colors ${
-                  activeTab === idx ? "text-gold-accent font-bold" : "text-gray-500 hover:text-gray-700"
+                className={`text-[10px] uppercase tracking-wider py-2.5 px-1 rounded-lg transition-all duration-300 font-semibold ${
+                  activeTab === idx 
+                    ? "bg-[#B68D40] text-white shadow-xs" 
+                    : "text-gray-500 hover:text-gray-900 hover:bg-[#F0EAE1]/30"
+                }`}
+              >
+                {tab.tabName}
+              </button>
+            ))}
+         </div>
+
+         {/* Desktop Tab Control: Fluid sliding underline */}
+         <div className="hidden md:flex md:flex-wrap md:justify-center gap-6 md:gap-8 border-b border-gray-150 pb-3">
+            {tabs.map((tab, idx) => (
+              <button
+                key={idx}
+                onClick={() => setActiveTab(idx)}
+                className={`text-xs md:text-sm uppercase tracking-widest pb-1 relative transition-colors whitespace-nowrap ${
+                  activeTab === idx ? "text-gold-accent font-bold" : "text-gray-400 hover:text-gray-700"
                 }`}
               >
                 {tab.tabName}
                 {activeTab === idx && (
                   <motion.div
                     layoutId="activeTab"
-                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-gold-primary"
+                    className="absolute bottom-[-13px] left-0 right-0 h-0.5 bg-gold-primary"
                   />
                 )}
               </button>
@@ -75,7 +93,7 @@ export function FeaturedCollections() {
       </div>
 
       <div className="max-w-[1440px] 2xl:max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16">
-        <div className="relative aspect-[21/9] bg-white border border-gray-200 overflow-hidden flex items-center justify-center">
+        <div className="relative aspect-[4/5] sm:aspect-[16/9] lg:aspect-[21/9] min-h-[340px] sm:min-h-0 bg-white border border-gray-200 overflow-hidden flex items-center justify-center">
             <motion.div
               key={activeTab}
               initial={{ opacity: 0, scale: 1.02 }}
@@ -92,16 +110,16 @@ export function FeaturedCollections() {
                <div className="absolute inset-0 bg-black/65 backdrop-blur-[1px]"></div>
             </motion.div>
 
-            <div className="relative z-10 text-center p-8 max-w-3xl">
-              <h3 className="font-serif text-3xl md:text-5xl text-white mb-4 uppercase tracking-widest">
+            <div className="relative z-10 text-center p-4 sm:p-8 max-w-3xl">
+              <h3 className="font-serif text-lg sm:text-2xl md:text-3.5xl lg:text-5xl text-white mb-2 sm:mb-4 uppercase tracking-widest leading-tight">
                 {currentTab.title}
               </h3>
-              <p className="text-gray-200 text-sm md:text-base font-light mb-8 max-w-xl mx-auto leading-relaxed">
+              <p className="text-gray-200 text-[11px] sm:text-xs md:text-sm lg:text-base font-light mb-4 sm:mb-8 max-w-xl mx-auto leading-relaxed px-2 sm:px-0">
                 {currentTab.description}
               </p>
               <Link 
                 to={currentTab.buttonLink || "/shop"}
-                className="inline-block border border-gold-primary text-gold-primary hover:bg-gold-primary hover:text-black px-8 py-3 uppercase tracking-widest text-xs font-bold transition-all backdrop-blur-md bg-white/10 shadow-lg"
+                className="inline-block border border-gold-primary text-gold-primary hover:bg-gold-primary hover:text-black px-6 py-2.5 sm:px-8 sm:py-3 uppercase tracking-widest text-[10px] sm:text-xs font-bold transition-all backdrop-blur-md bg-white/10 shadow-lg"
               >
                 {currentTab.buttonText || "Explore The Collection"}
               </Link>

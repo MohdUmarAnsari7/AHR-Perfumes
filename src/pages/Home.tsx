@@ -12,7 +12,7 @@ import { ProductCarousel } from "../components/ProductCarousel";
 import { FeaturedCollections } from "../components/FeaturedCollections";
 import { Gallery, Stats } from "../components/GalleryAndStats";
 import { ContactCTA } from "../components/ContactCTA";
-import { ContactSection } from "../components/ContactSection";
+import { ProductCard } from "../components/ProductCard";
 
 export default function Home() {
   const [loadedProducts, setLoadedProducts] = useState<any[]>([]);
@@ -132,63 +132,8 @@ export default function Home() {
                       exit={{ opacity: 0, scale: 0.9 }}
                       transition={{ duration: 0.3 }}
                       key={product.id}
-                      className="group bg-white border border-stone-200 overflow-hidden h-full flex flex-col relative"
                     >
-                      <div className="relative aspect-[4/5] overflow-hidden bg-white">
-                        <Link to={`/product/${product.id}`} className="block w-full h-full">
-                          <img 
-                            src={product.image} 
-                            alt={product.name} 
-                            className="w-full h-full object-cover opacity-100"
-                            referrerPolicy="no-referrer"
-                          />
-                        </Link>
-                        <div className="absolute top-3 right-3 flex flex-col space-y-2 z-10">
-                          <button 
-                            onClick={() => toggleFavorite(product)}
-                            className="w-8 h-8 bg-white/95 border border-stone-100 text-stone-800 flex items-center justify-center hover:bg-gold-primary hover:text-black hover:border-gold-primary transition-colors rounded-full shadow-sm"
-                            title={isFavorite(product.id) ? "Remove from wishlist" : "Add to wishlist"}
-                          >
-                            <Heart className={`w-3.5 h-3.5 ${isFavorite(product.id) ? "fill-gold-primary text-gold-accent" : "text-stone-800"}`} />
-                          </button>
-                          <Link 
-                            to={`/product/${product.id}`}
-                            className="w-8 h-8 bg-white/95 border border-stone-100 text-stone-800 flex items-center justify-center hover:bg-gold-primary hover:text-black hover:border-gold-primary transition-colors rounded-full shadow-sm"
-                            title="Quick View"
-                          >
-                            <Eye className="w-3.5 h-3.5" />
-                          </Link>
-                        </div>
-                      </div>
-
-                      <div className="p-6 flex flex-col flex-grow text-center">
-                        <p className="text-gold-primary text-xs uppercase tracking-widest mb-2 font-semibold">
-                          {product.category}
-                        </p>
-                        <Link to={`/product/${product.id}`} className="hover:text-gold-accent transition-colors">
-                          <h3 className="font-serif text-xl text-stone-900 mb-2">{product.name}</h3>
-                        </Link>
-                        <div className="flex items-center justify-center space-x-1 mb-4">
-                          <span className="text-gold-accent text-sm">★</span>
-                          <span className="text-stone-600 text-sm">{product.rating || "4.8"}</span>
-                        </div>
-                        <p className="text-stone-900 font-medium mb-6">₹{product.price.toLocaleString()}</p>
-                        <div className="mt-auto">
-                          <button 
-                            onClick={() => addItem({
-                              id: String(product.id),
-                              name: product.name,
-                              category: product.category,
-                              price: Number(product.price),
-                              quantity: 1,
-                              image: product.image
-                            })}
-                            className="w-full py-3 border border-stone-200 text-sm uppercase tracking-wider hover:bg-gold-primary hover:text-black hover:border-gold-primary transition-all duration-300"
-                          >
-                            Add to Cart
-                          </button>
-                        </div>
-                      </div>
+                      <ProductCard product={product} />
                     </motion.div>
                   ))}
                 </AnimatePresence>
@@ -206,8 +151,6 @@ export default function Home() {
           <ContactCTA />
         </>
       )}
-      
-      <ContactSection />
     </>
   );
 }

@@ -24,19 +24,19 @@ export function FeatureHighlights() {
             )}
           </div>
         )}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-10">
           {highlights.map((feature, idx) => {
             const Icon = Icons[feature.icon as keyof typeof Icons] as React.ElementType;
             return (
               <div
                 key={idx}
-                className="group flex flex-col items-center text-center p-6 bg-white border border-gray-200 hover:border-gold-primary transition-all duration-300"
+                className="group flex flex-col items-center text-center p-4 sm:p-6 bg-white border border-gray-200 hover:border-gold-primary transition-all duration-300"
               >
-                <div className="w-16 h-16 rounded-full bg-white border border-gray-200 flex items-center justify-center mb-6 group-hover:border-gold-primary transition-colors">
-                  {Icon && <Icon className="w-6 h-6 text-gold-accent" />}
+                <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-white border border-gray-200 flex items-center justify-center mb-4 sm:mb-6 group-hover:border-gold-primary transition-colors">
+                  {Icon && <Icon className="w-5 h-5 sm:w-6 sm:h-6 text-gold-accent" />}
                 </div>
-                <h3 className="font-serif text-xl text-gray-900 mb-3 tracking-wide">{feature.title}</h3>
-                <p className="text-gray-600 text-sm leading-relaxed">{feature.description}</p>
+                <h3 className="font-serif text-sm sm:text-base md:text-xl text-gray-900 mb-2 sm:mb-3 tracking-wide">{feature.title}</h3>
+                <p className="text-gray-600 text-xs sm:text-sm leading-relaxed">{feature.description}</p>
               </div>
             );
           })}

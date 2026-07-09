@@ -23,8 +23,8 @@ export function ContactCTA() {
       </div>
       
       <div className="relative z-10 max-w-3xl px-4 sm:px-6 lg:px-8 mx-auto">
-        <h2 className="font-serif text-3xl md:text-5xl text-white mb-4 uppercase tracking-widest leading-tight">{title}</h2>
-        <p className="text-gray-300 mb-6 text-sm md:text-base font-light leading-relaxed max-w-xl mx-auto">
+        <h2 className="font-serif text-2xl sm:text-3.5xl md:text-5xl text-white mb-4 uppercase tracking-widest leading-tight">{title}</h2>
+        <p className="text-gray-300 mb-6 text-xs sm:text-sm md:text-base font-light leading-relaxed max-w-xl mx-auto">
           {subtitle}
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-6">
