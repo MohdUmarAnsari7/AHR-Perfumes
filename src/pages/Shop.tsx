@@ -178,8 +178,8 @@ export default function Shop() {
         </div>
       </section>
 
-      {/* Sticky Premium Toolbar - Search, Category Tabs, Filter and Sort */}
-      <div className="sticky top-[58px] sm:top-[72px] z-35 bg-white/95 backdrop-blur-md border-b border-stone-200 py-2 sm:py-3.5 shadow-xs transition-all duration-300">
+      {/* Premium Toolbar - Search, Category Tabs, Filter and Sort */}
+      <div className="relative z-35 bg-white/95 backdrop-blur-md border-b border-stone-200 py-2 sm:py-3.5 shadow-xs transition-all duration-300">
         <div className="max-w-[1440px] 2xl:max-w-[1600px] mx-auto px-3 sm:px-6 lg:px-8 xl:px-12 2xl:px-16">
           <div className="flex flex-col gap-2 sm:gap-3.5">
             
