@@ -1,15 +1,24 @@
 import { create } from "zustand";
-import { supabase, isSupabaseConfigured } from "../lib/supabase";
-import { User } from "@supabase/supabase-js";
+import { useCartStore } from "./useCart";
+
+export interface CustomUser {
+  id: string;
+  email: string;
+  mobile: string;
+  name?: string;
+  role: string;
+  user_metadata?: {
+    full_name?: string;
+  };
+}
 
 interface AuthState {
-  user: User | null;
+  user: CustomUser | null;
   guestId: string;
   isLoggedIn: boolean;
   loading: boolean;
   error: string | null;
-  mockOtp: string | null;
-  forceSandboxMode: boolean;
+  sessionToken: string | null;
   
   // Modal State Management
   isAuthModalOpen: boolean;
@@ -17,14 +26,9 @@ interface AuthState {
   openAuthModal: (tab?: "login" | "signup") => void;
   closeAuthModal: () => void;
   
-  // OTP Methods
-  sendOtp: (email: string, fullName?: string) => Promise<void>;
-  verifyOtp: (email: string, token: string, fullName?: string) => Promise<void>;
-  
-  // Sandbox Toggle
-  enableSandboxMode: () => void;
-  
-  // Backwards compatible sign-out and guest
+  // Auth Methods
+  signUp: (params: { email: string; mobile: string; name?: string; password?: string }) => Promise<void>;
+  login: (params: { identifier: string; password?: string }) => Promise<void>;
   signOut: () => Promise<void>;
   initialize: () => void;
   getUserId: () => string;
@@ -46,161 +50,167 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isLoggedIn: false,
   loading: false,
   error: null,
-  mockOtp: null,
-  forceSandboxMode: false,
+  sessionToken: null,
 
   // Modal State
   isAuthModalOpen: false,
   authModalTab: "login",
-  openAuthModal: (tab = "login") => set({ isAuthModalOpen: true, authModalTab: tab, error: null, mockOtp: null }),
-  closeAuthModal: () => set({ isAuthModalOpen: false, error: null, mockOtp: null }),
-
-  enableSandboxMode: () => set({ forceSandboxMode: true, error: null, mockOtp: null }),
+  openAuthModal: (tab = "login") => set({ isAuthModalOpen: true, authModalTab: tab, error: null }),
+  closeAuthModal: () => set({ isAuthModalOpen: false, error: null }),
 
   getUserId: () => {
     const { user, guestId } = get();
     return user ? user.id : guestId;
   },
 
-  sendOtp: async (email, fullName) => {
-    set({ loading: true, error: null, mockOtp: null });
-
-    const isUsingSandbox = !isSupabaseConfigured || get().forceSandboxMode;
-
-    if (isUsingSandbox) {
-      // Mock OTP Flow
-      console.warn("Using simulated sandbox mode. Generating OTP...");
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      // Generate a simple 6-digit OTP
-      const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
-      console.log(`[MOCK OTP] Sent to ${email} (Name: ${fullName || "Guest"}). Verification Code: ${generatedOtp}`);
-      set({ loading: false, mockOtp: generatedOtp });
-      return;
-    }
-
+  signUp: async ({ email, mobile, name, password }) => {
+    set({ loading: true, error: null });
     try {
-      // Send OTP via Supabase
-      const { error } = await supabase!.auth.signInWithOtp({
-        email,
-        options: {
-          shouldCreateUser: true,
-          data: fullName ? { full_name: fullName } : {},
-        }
+      const res = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ email, mobile, name, password })
       });
 
-      if (error) throw error;
-      set({ loading: false });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to register.");
+      }
+
+      const mappedUser: CustomUser = {
+        ...data.user,
+        user_metadata: {
+          full_name: data.user.name || data.user.email.split("@")[0]
+        }
+      };
+
+      localStorage.setItem("ahr_session_token", data.sessionToken);
+      localStorage.setItem("ahr_user", JSON.stringify(mappedUser));
+
+      set({
+        user: mappedUser,
+        isLoggedIn: true,
+        sessionToken: data.sessionToken,
+        loading: false,
+        isAuthModalOpen: false
+      });
     } catch (err: any) {
-      set({ error: err.message || "Failed to send verification code.", loading: false });
+      set({ error: err.message || "Failed to sign up.", loading: false });
       throw err;
     }
   },
 
-  verifyOtp: async (email, token, fullName) => {
+  login: async ({ identifier, password }) => {
     set({ loading: true, error: null });
-
-    const isUsingSandbox = !isSupabaseConfigured || get().forceSandboxMode;
-
-    if (isUsingSandbox) {
-      // Mock Verify OTP Flow
-      console.warn("Using simulated sandbox mode. Verifying OTP...");
-      await new Promise((resolve) => setTimeout(resolve, 850));
-
-      const storedOtp = get().mockOtp;
-      if (token === "123456" || token === storedOtp) {
-        const mockUser = {
-          id: "mock_user_" + Math.random().toString(36).substring(2, 9),
-          email,
-          user_metadata: { full_name: fullName || email.split("@")[0] },
-          aud: "authenticated",
-          role: "authenticated",
-          created_at: new Date().toISOString()
-        } as unknown as User;
-
-        set({ user: mockUser, isLoggedIn: true, loading: false, isAuthModalOpen: false, mockOtp: null });
-      } else {
-        const err = new Error("Invalid verification code. Please check your OTP and try again (sandbox accepts '123456' or the generated code).");
-        set({ error: err.message, loading: false });
-        throw err;
-      }
-      return;
-    }
-
     try {
-      const { data, error } = await supabase!.auth.verifyOtp({
-        email,
-        token,
-        type: "email"
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ identifier, password })
       });
 
-      if (error) throw error;
-
-      // If user is logged in, optionally update full name metadata if registering
-      if (data.user && fullName) {
-        const { error: updateError } = await supabase!.auth.updateUser({
-          data: { full_name: fullName }
-        });
-        if (updateError) {
-          console.error("Failed to update full name metadata after verification:", updateError);
-        } else {
-          // fetch fresh session user
-          const { data: { user: freshUser } } = await supabase!.auth.getUser();
-          if (freshUser) {
-            data.user = freshUser;
-          }
-        }
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to log in.");
       }
 
-      set({ 
-        user: data.user, 
-        isLoggedIn: !!data.user, 
-        loading: false, 
-        isAuthModalOpen: !data.user 
+      const mappedUser: CustomUser = {
+        ...data.user,
+        user_metadata: {
+          full_name: data.user.name || data.user.email.split("@")[0]
+        }
+      };
+
+      localStorage.setItem("ahr_session_token", data.sessionToken);
+      localStorage.setItem("ahr_user", JSON.stringify(mappedUser));
+
+      set({
+        user: mappedUser,
+        isLoggedIn: true,
+        sessionToken: data.sessionToken,
+        loading: false,
+        isAuthModalOpen: false
       });
     } catch (err: any) {
-      set({ error: err.message || "Invalid OTP code or verification failed.", loading: false });
+      set({ error: err.message || "Failed to log in.", loading: false });
       throw err;
     }
   },
 
   signOut: async () => {
     set({ loading: true, error: null });
-
-    const isUsingSandbox = !isSupabaseConfigured || get().forceSandboxMode;
-
-    if (isUsingSandbox) {
-      await new Promise((resolve) => setTimeout(resolve, 400));
-      set({ user: null, isLoggedIn: false, loading: false });
-      return;
-    }
-
+    const token = get().sessionToken;
     try {
-      const { error } = await supabase!.auth.signOut();
-      if (error) throw error;
-      set({ user: null, isLoggedIn: false, loading: false });
-    } catch (err: any) {
-      set({ error: err.message, loading: false });
-      throw err;
+      if (token) {
+        await fetch("/api/auth/logout", {
+          method: "POST",
+          headers: {
+            "x-session-token": token
+          }
+        });
+      }
+    } catch (err) {
+      console.warn("Failed to sign out on server:", err);
+    } finally {
+      localStorage.removeItem("ahr_session_token");
+      localStorage.removeItem("ahr_user");
+      try {
+        useCartStore.getState().clearCart();
+      } catch (e) {
+        console.warn("Failed to clear cart on sign out:", e);
+      }
+      set({
+        user: null,
+        isLoggedIn: false,
+        sessionToken: null,
+        loading: false
+      });
     }
   },
 
   initialize: () => {
-    if (!isSupabaseConfigured) return;
+    const token = localStorage.getItem("ahr_session_token");
+    const storedUser = localStorage.getItem("ahr_user");
+    if (token && storedUser) {
+      try {
+        const parsed = JSON.parse(storedUser);
+        set({ user: parsed, isLoggedIn: true, sessionToken: token });
 
-    // Get initial session
-    supabase!.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        set({ user: session.user, isLoggedIn: true });
+        // Verify active session with the backend
+        fetch("/api/auth/me", {
+          headers: {
+            "x-session-token": token,
+          }
+        }).then(async (res) => {
+          if (res.ok) {
+            const data = await res.json();
+            if (data.success && data.user) {
+              const mappedUser: CustomUser = {
+                ...data.user,
+                user_metadata: {
+                  full_name: data.user.name || data.user.email.split("@")[0]
+                }
+              };
+              set({ user: mappedUser, isLoggedIn: true });
+              localStorage.setItem("ahr_user", JSON.stringify(mappedUser));
+            }
+          } else {
+            // Token is invalid/expired
+            localStorage.removeItem("ahr_session_token");
+            localStorage.removeItem("ahr_user");
+            set({ user: null, isLoggedIn: false, sessionToken: null });
+          }
+        }).catch(err => {
+          console.warn("Auth check failed:", err);
+        });
+      } catch (e) {
+        localStorage.removeItem("ahr_session_token");
+        localStorage.removeItem("ahr_user");
       }
-    });
-
-    // Listen to auth state updates
-    supabase!.auth.onAuthStateChange((_event, session) => {
-      set({ 
-        user: session?.user ?? null, 
-        isLoggedIn: !!session?.user,
-        error: null
-      });
-    });
+    }
   }
 }));

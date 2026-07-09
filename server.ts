@@ -1,10 +1,11 @@
 import express from "express";
 import path from "path";
 import fs from "fs";
+import crypto from "crypto";
 import { createServer as createViteServer } from "vite";
 import { createClient } from "@supabase/supabase-js";
 import { db, isDbConfigured, pool } from "./src/db/index";
-import { products, cartItems, businessInfo, categories, testimonials, faqs, galleryImages } from "./src/db/schema";
+import { products, cartItems, businessInfo, categories, testimonials, faqs, galleryImages, users } from "./src/db/schema";
 import { 
   products as staticProducts,
   businessInfo as staticBusinessInfo,
@@ -46,6 +47,19 @@ const cleanEnvVar = (val: string | undefined): string | undefined => {
   }
   return clean.trim();
 };
+
+function hashPassword(password: string): string {
+  const salt = crypto.randomBytes(16).toString("hex");
+  const hash = crypto.pbkdf2Sync(password, salt, 1000, 64, "sha512").toString("hex");
+  return `${salt}:${hash}`;
+}
+
+function verifyPassword(password: string, storedHash: string): boolean {
+  if (!storedHash || !storedHash.includes(":")) return false;
+  const [salt, hash] = storedHash.split(":");
+  const computedHash = crypto.pbkdf2Sync(password, salt, 1000, 64, "sha512").toString("hex");
+  return computedHash === hash;
+}
 
 const SUPABASE_URL = cleanEnvVar(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL);
 const SUPABASE_SERVICE_ROLE_KEY = cleanEnvVar(process.env.SUPABASE_SERVICE_ROLE_KEY);
@@ -98,11 +112,15 @@ if (pool) {
       }, ms);
     });
     
-    const executionPromise = originalQuery(...args);
-    
-    return Promise.race([executionPromise, timeoutPromise]).finally(() => {
+    try {
+      const executionPromise = originalQuery(...args);
+      return Promise.race([executionPromise, timeoutPromise]).finally(() => {
+        clearTimeout(timerId);
+      });
+    } catch (err) {
       clearTimeout(timerId);
-    });
+      return Promise.reject(err);
+    }
   };
 
   pool.query = async function (this: any, ...args: any[]) {
@@ -176,6 +194,19 @@ async function setupAndSeedDatabase() {
   console.log("Ensuring database tables exist...");
 
   // Create tables raw SQL
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY,
+      email VARCHAR(255) UNIQUE NOT NULL,
+      mobile VARCHAR(50) UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      name VARCHAR(255),
+      role VARCHAR(50) DEFAULT 'user',
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    );
+  `);
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS products (
       id SERIAL PRIMARY KEY,
@@ -684,6 +715,8 @@ async function startServer() {
   let inMemoryCart: any[] = [];
   let activeCategories: any[] = [];
   let activeGalleryImages: any[] = [];
+  let inMemoryUsers: any[] = [];
+  let inMemorySessions: Record<string, any> = {};
   let activeWebsiteContent: Record<string, any> = {
     homepage: {
       heroHeading: "Premium Attars Crafted With Tradition",
@@ -817,6 +850,13 @@ async function startServer() {
           if (parsed.activeCategories) activeCategories = parsed.activeCategories;
           if (parsed.activeGalleryImages) activeGalleryImages = parsed.activeGalleryImages;
           if (parsed.activeWebsiteContent) activeWebsiteContent = parsed.activeWebsiteContent;
+          if (parsed.inMemoryUsers) {
+            inMemoryUsers.length = 0;
+            inMemoryUsers.push(...parsed.inMemoryUsers);
+          }
+          if (parsed.inMemorySessions) {
+            inMemorySessions = parsed.inMemorySessions;
+          }
           console.log("[Fallback Store] Loaded persistent fallback data from disk cache.");
         } catch (parseErr: any) {
           console.error("[Fallback Store] Corrupted fallback data detected. Resetting store to avoid crash and log spam. Error:", parseErr.message);
@@ -844,7 +884,9 @@ async function startServer() {
         inMemoryCart,
         activeCategories,
         activeGalleryImages,
-        activeWebsiteContent
+        activeWebsiteContent,
+        inMemoryUsers,
+        inMemorySessions
       };
       const jsonString = JSON.stringify(data, null, 2);
       fs.writeFileSync(FALLBACK_STORE_PATH, jsonString, "utf8");
@@ -1432,12 +1474,261 @@ async function startServer() {
     }
   });
 
+  // --- AUTHENTICATION & SECURE SESSION API ---
+  const getAuthenticatedUser = async (req: express.Request) => {
+    let token = req.headers["x-session-token"] as string;
+    if (!token && req.headers.authorization) {
+      const parts = req.headers.authorization.split(" ");
+      if (parts[0] === "Bearer") {
+        token = parts[1];
+      }
+    }
+
+    if (!token) return null;
+
+    const session = inMemorySessions[token];
+    if (session) {
+      if (session.expiresAt && Date.now() > session.expiresAt) {
+        delete inMemorySessions[token];
+        saveFallbackData();
+        return null;
+      }
+      return session.user;
+    }
+    return null;
+  };
+
+  app.post("/api/auth/signup", async (req, res) => {
+    try {
+      const { email, mobile, password, name } = req.body;
+
+      if (!email || !mobile || !password) {
+        return res.status(400).json({ error: "Email, Mobile Number, and Password are required." });
+      }
+
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({ error: "Please enter a valid email address." });
+      }
+
+      if (mobile.trim().length < 8) {
+        return res.status(400).json({ error: "Please enter a valid mobile number (at least 8 digits)." });
+      }
+
+      if (password.length < 6) {
+        return res.status(400).json({ error: "Password must be at least 6 characters long." });
+      }
+
+      const pHash = hashPassword(password);
+      const emailLower = email.trim().toLowerCase();
+      const mobileClean = mobile.trim();
+
+      // Check if user already exists
+      let existingUser = null;
+      if (isDbConfigured && isDbHealthy) {
+        try {
+          const dbUsers = await db.select().from(users).where(eq(users.email, emailLower)).limit(1);
+          if (dbUsers.length > 0) {
+            existingUser = dbUsers[0];
+          } else {
+            const dbUsersMobile = await db.select().from(users).where(eq(users.mobile, mobileClean)).limit(1);
+            if (dbUsersMobile.length > 0) {
+              existingUser = dbUsersMobile[0];
+            }
+          }
+        } catch (dbErr) {
+          console.error("Database user check failed, using fallback:", dbErr);
+        }
+      }
+
+      if (!existingUser) {
+        existingUser = inMemoryUsers.find(
+          u => u.email === emailLower || u.mobile === mobileClean
+        );
+      }
+
+      if (existingUser) {
+        return res.status(400).json({ error: "An account with this email or mobile number already exists." });
+      }
+
+      // Create new user
+      const newUser = {
+        email: emailLower,
+        mobile: mobileClean,
+        passwordHash: pHash,
+        name: name ? name.trim() : null,
+        role: "user",
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      let createdUser = null;
+      if (isDbConfigured && isDbHealthy) {
+        try {
+          const inserted = await db.insert(users).values({
+            email: newUser.email,
+            mobile: newUser.mobile,
+            passwordHash: newUser.passwordHash,
+            name: newUser.name,
+            role: newUser.role
+          }).returning();
+          createdUser = inserted[0];
+        } catch (dbErr: any) {
+          console.error("Database user insertion failed, using fallback:", dbErr);
+        }
+      }
+
+      if (!createdUser) {
+        const fallbackId = inMemoryUsers.length + 1000 + Math.floor(Math.random() * 9000);
+        const userWithId = { id: fallbackId, ...newUser };
+        inMemoryUsers.push(userWithId);
+        await saveFallbackData();
+        createdUser = userWithId;
+      } else {
+        inMemoryUsers.push(createdUser);
+        await saveFallbackData();
+      }
+
+      // Generate session token
+      const sessionToken = crypto.randomBytes(32).toString("hex");
+      const sessionData = {
+        user: {
+          id: String(createdUser.id),
+          email: createdUser.email,
+          mobile: createdUser.mobile,
+          name: createdUser.name,
+          role: createdUser.role
+        },
+        expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000 // 30 days
+      };
+
+      inMemorySessions[sessionToken] = sessionData;
+      await saveFallbackData();
+
+      res.status(201).json({
+        success: true,
+        sessionToken,
+        user: sessionData.user
+      });
+
+    } catch (err: any) {
+      console.error("Signup error:", err);
+      res.status(500).json({ error: "An error occurred during sign up.", details: err.message });
+    }
+  });
+
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const { identifier, password } = req.body;
+
+      if (!identifier || !password) {
+        return res.status(400).json({ error: "Email or Mobile Number and Password are required." });
+      }
+
+      const cleanIdentifier = identifier.trim().toLowerCase();
+
+      // Find user
+      let userFound = null;
+      if (isDbConfigured && isDbHealthy) {
+        try {
+          const dbUsers = await db.select().from(users).where(eq(users.email, cleanIdentifier)).limit(1);
+          if (dbUsers.length > 0) {
+            userFound = dbUsers[0];
+          } else {
+            const dbUsersMobile = await db.select().from(users).where(eq(users.mobile, identifier.trim())).limit(1);
+            if (dbUsersMobile.length > 0) {
+              userFound = dbUsersMobile[0];
+            }
+          }
+        } catch (dbErr) {
+          console.error("Database user find failed, using fallback:", dbErr);
+        }
+      }
+
+      if (!userFound) {
+        userFound = inMemoryUsers.find(
+          u => u.email === cleanIdentifier || u.mobile === identifier.trim()
+        );
+      }
+
+      if (!userFound) {
+        return res.status(400).json({ error: "Invalid credentials. Please check your email/mobile or password." });
+      }
+
+      // Verify password
+      const isValid = verifyPassword(password, userFound.passwordHash);
+      if (!isValid) {
+        return res.status(400).json({ error: "Invalid credentials. Please check your email/mobile or password." });
+      }
+
+      // Generate session token
+      const sessionToken = crypto.randomBytes(32).toString("hex");
+      const sessionData = {
+        user: {
+          id: String(userFound.id),
+          email: userFound.email,
+          mobile: userFound.mobile,
+          name: userFound.name,
+          role: userFound.role
+        },
+        expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000 // 30 days
+      };
+
+      inMemorySessions[sessionToken] = sessionData;
+      await saveFallbackData();
+
+      res.json({
+        success: true,
+        sessionToken,
+        user: sessionData.user
+      });
+
+    } catch (err: any) {
+      console.error("Login error:", err);
+      res.status(500).json({ error: "An error occurred during login.", details: err.message });
+    }
+  });
+
+  app.get("/api/auth/me", async (req, res) => {
+    try {
+      const user = await getAuthenticatedUser(req);
+      if (!user) {
+        return res.status(401).json({ error: "Unauthorized. Please login again." });
+      }
+      res.json({ success: true, user });
+    } catch (err: any) {
+      res.status(500).json({ error: "Failed to fetch user session.", details: err.message });
+    }
+  });
+
+  app.post("/api/auth/logout", async (req, res) => {
+    try {
+      let token = req.headers["x-session-token"] as string;
+      if (!token && req.headers.authorization) {
+        const parts = req.headers.authorization.split(" ");
+        if (parts[0] === "Bearer") {
+          token = parts[1];
+        }
+      }
+
+      if (token && inMemorySessions[token]) {
+        delete inMemorySessions[token];
+        await saveFallbackData();
+      }
+
+      res.json({ success: true, message: "Logged out successfully." });
+    } catch (err: any) {
+      res.status(500).json({ error: "Failed to log out.", details: err.message });
+    }
+  });
+
   // --- CART API ---
   app.get("/api/cart", async (req, res) => {
     try {
-      const userId = req.headers['x-user-id']; 
+      const authUser = await getAuthenticatedUser(req);
+      const userId = authUser ? String(authUser.id) : (req.headers['x-user-id'] as string); 
       if (!userId || typeof userId !== 'string') {
-        return res.status(401).json({ error: "Unauthorized. Missing x-user-id header." });
+        return res.status(401).json({ error: "Unauthorized. Missing session token or guest header." });
       }
 
       if (isDbConfigured && isDbHealthy) {
@@ -1449,7 +1740,8 @@ async function startServer() {
       res.json(userItems);
     } catch (error: any) {
       console.warn("Error fetching cart items:", error.message || error);
-      const userId = req.headers['x-user-id'];
+      const authUser = await getAuthenticatedUser(req);
+      const userId = authUser ? String(authUser.id) : (req.headers['x-user-id'] as string);
       if (!userId || typeof userId !== 'string') {
         return res.status(401).json({ error: "Unauthorized." });
       }
@@ -1460,7 +1752,8 @@ async function startServer() {
 
   app.post("/api/cart", async (req, res) => {
     try {
-      const userId = req.headers['x-user-id']; 
+      const authUser = await getAuthenticatedUser(req);
+      const userId = authUser ? String(authUser.id) : (req.headers['x-user-id'] as string); 
       if (!userId || typeof userId !== 'string') {
         return res.status(401).json({ error: "Unauthorized" });
       }
@@ -1524,9 +1817,89 @@ async function startServer() {
     }
   });
 
+  app.delete("/api/cart/product/:productId", async (req, res) => {
+    try {
+      const authUser = await getAuthenticatedUser(req);
+      const userId = authUser ? String(authUser.id) : (req.headers['x-user-id'] as string); 
+      if (!userId || typeof userId !== 'string') {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const prodIdStr = req.params.productId;
+      const parsedProdId = parseInt(prodIdStr.replace(/[^\d]/g, ""), 10);
+
+      if (isDbConfigured && isDbHealthy) {
+        if (!isNaN(parsedProdId)) {
+          await db.delete(cartItems).where(and(eq(cartItems.userId, userId), eq(cartItems.productId, parsedProdId)));
+          return res.json({ success: true });
+        }
+      }
+
+      const initialLength = inMemoryCart.length;
+      const filtered = inMemoryCart.filter(
+        item => !(item.userId === userId && String(item.productId) === String(prodIdStr))
+      );
+      if (filtered.length !== initialLength) {
+        inMemoryCart.length = 0;
+        inMemoryCart.push(...filtered);
+        saveFallbackData();
+        return res.json({ success: true });
+      }
+
+      res.status(404).json({ error: "Product not found in cart" });
+    } catch (error) {
+      console.error("Error removing product from cart:", error);
+      res.status(500).json({ error: "Failed to remove product from cart" });
+    }
+  });
+
+  app.put("/api/cart/product/:productId", async (req, res) => {
+    try {
+      const authUser = await getAuthenticatedUser(req);
+      const userId = authUser ? String(authUser.id) : (req.headers['x-user-id'] as string); 
+      if (!userId || typeof userId !== 'string') {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const prodIdStr = req.params.productId;
+      const parsedProdId = parseInt(prodIdStr.replace(/[^\d]/g, ""), 10);
+      const { quantity } = req.body;
+
+      if (typeof quantity !== 'number' || quantity < 1) {
+        return res.status(400).json({ error: "Invalid quantity" });
+      }
+
+      if (isDbConfigured && isDbHealthy) {
+        if (!isNaN(parsedProdId)) {
+          const updated = await db.update(cartItems)
+            .set({ quantity, updatedAt: new Date() })
+            .where(and(eq(cartItems.userId, userId), eq(cartItems.productId, parsedProdId)))
+            .returning();
+          return res.json({ success: true, updated: updated[0] });
+        }
+      }
+
+      const itemIndex = inMemoryCart.findIndex(
+        item => item.userId === userId && String(item.productId) === String(prodIdStr)
+      );
+      if (itemIndex >= 0) {
+        inMemoryCart[itemIndex].quantity = quantity;
+        inMemoryCart[itemIndex].updatedAt = new Date();
+        saveFallbackData();
+        return res.json({ success: true, item: inMemoryCart[itemIndex] });
+      }
+
+      res.status(404).json({ error: "Product not found in cart" });
+    } catch (error) {
+      console.error("Error updating cart quantity:", error);
+      res.status(500).json({ error: "Failed to update quantity" });
+    }
+  });
+
   app.delete("/api/cart/:id", async (req, res) => {
     try {
-      const userId = req.headers['x-user-id']; 
+      const authUser = await getAuthenticatedUser(req);
+      const userId = authUser ? String(authUser.id) : (req.headers['x-user-id'] as string); 
       if (!userId || typeof userId !== 'string') {
         return res.status(401).json({ error: "Unauthorized" });
       }

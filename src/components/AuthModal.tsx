@@ -1,18 +1,20 @@
 import React, { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import { motion } from "motion/react";
 import { useAuthStore } from "../store/useAuth";
 import { useBusinessInfoStore } from "../store/useBusinessInfo";
-import { isSupabaseConfigured } from "../lib/supabase";
 import { 
   X, 
   Mail, 
   User, 
+  Phone,
   ShieldCheck, 
   ArrowRight, 
   RefreshCw, 
   AlertCircle, 
   CheckCircle2,
-  Lock
+  Lock,
+  Eye,
+  EyeOff
 } from "lucide-react";
 
 export function AuthModal() {
@@ -22,99 +24,135 @@ export function AuthModal() {
     closeAuthModal, 
     openAuthModal,
     loading, 
-    error, 
-    mockOtp, 
-    sendOtp, 
-    verifyOtp,
-    forceSandboxMode,
-    enableSandboxMode
+    error,
+    signUp,
+    login
   } = useAuthStore();
   
   const info = useBusinessInfoStore((state) => state.info);
 
   // Form input states
   const [email, setEmail] = useState("");
+  const [mobile, setMobile] = useState("");
   const [fullName, setFullName] = useState("");
-  const [otpToken, setOtpToken] = useState("");
+  const [password, setPassword] = useState("");
   
-  // Progress states
-  const [otpSent, setOtpSent] = useState(false);
+  // Login identifier (Email or Mobile)
+  const [identifier, setIdentifier] = useState("");
+
+  // Password visibility toggle
+  const [showPassword, setShowPassword] = useState(false);
+  
+  // Feedback states
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
 
   // Reset internal state when modal opens/closes or tab changes
   useEffect(() => {
     if (isAuthModalOpen) {
-      setOtpSent(false);
-      setOtpToken("");
+      setEmail("");
+      setMobile("");
+      setFullName("");
+      setPassword("");
+      setIdentifier("");
+      setShowPassword(false);
       setSuccessMsg(null);
       setLocalError(null);
-      // Keep email and fullName if switching tabs
     }
   }, [isAuthModalOpen, authModalTab]);
 
   if (!isAuthModalOpen) return null;
 
-  const handleSendOtp = async (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setLocalError(null);
     setSuccessMsg(null);
 
-    if (!email) {
-      setLocalError("Please enter your email address.");
-      return;
-    }
-
-    // Basic email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      setLocalError("Please enter a valid email address.");
-      return;
-    }
-
-    if (authModalTab === "signup" && !fullName.trim()) {
+    // Client-side validations
+    if (!fullName.trim()) {
       setLocalError("Please enter your full name.");
       return;
     }
 
-    try {
-      await sendOtp(email.trim(), authModalTab === "signup" ? fullName.trim() : undefined);
-      setOtpSent(true);
-      setSuccessMsg("Verification code sent! Please check your inbox.");
-    } catch (err: any) {
-      // Error is already set in the store, but we can capture local details if needed
-      setLocalError(err.message || "Failed to send code. Please try again.");
+    if (!email.trim()) {
+      setLocalError("Please enter your email address.");
+      return;
     }
-  };
 
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLocalError(null);
-    setSuccessMsg(null);
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      setLocalError("Please enter a valid email address.");
+      return;
+    }
 
-    if (!otpToken || otpToken.length < 4) {
-      setLocalError("Please enter a valid verification code.");
+    if (!mobile.trim()) {
+      setLocalError("Please enter your mobile number.");
+      return;
+    }
+
+    if (mobile.trim().length < 8) {
+      setLocalError("Please enter a valid mobile number (at least 8 digits).");
+      return;
+    }
+
+    if (!password) {
+      setLocalError("Please set a password.");
+      return;
+    }
+
+    if (password.length < 6) {
+      setLocalError("Password must be at least 6 characters long.");
       return;
     }
 
     try {
-      await verifyOtp(email.trim(), otpToken.trim(), authModalTab === "signup" ? fullName.trim() : undefined);
-      setSuccessMsg("Session verified successfully! Welcome back.");
+      await signUp({
+        email: email.trim(),
+        mobile: mobile.trim(),
+        name: fullName.trim(),
+        password
+      });
+
+      setSuccessMsg("Registration successful! Welcome to " + info.name);
       
       // Close modal on success after a brief delay
       setTimeout(() => {
         closeAuthModal();
       }, 1000);
     } catch (err: any) {
-      setLocalError(err.message || "Verification failed. Check your code.");
+      setLocalError(err.message || "Failed to sign up. Please try again.");
     }
   };
 
-  const handleResetForm = () => {
-    setOtpSent(false);
-    setOtpToken("");
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
     setLocalError(null);
     setSuccessMsg(null);
+
+    if (!identifier.trim()) {
+      setLocalError("Please enter your registered email address or mobile number.");
+      return;
+    }
+
+    if (!password) {
+      setLocalError("Please enter your password.");
+      return;
+    }
+
+    try {
+      await login({
+        identifier: identifier.trim(),
+        password
+      });
+
+      setSuccessMsg("Logged in successfully! Welcome back.");
+      
+      setTimeout(() => {
+        closeAuthModal();
+      }, 1000);
+    } catch (err: any) {
+      setLocalError(err.message || "Invalid email/mobile or password.");
+    }
   };
 
   const activeError = localError || error;
@@ -156,27 +194,17 @@ export function AuthModal() {
             {info.name}
           </span>
           <h2 className="font-serif text-2xl md:text-3xl text-gray-900 font-light leading-tight">
-            {authModalTab === "login" ? "Welcome Back" : "Create Account"}
+            {authModalTab === "login" ? "Sign In" : "Create Account"}
           </h2>
           <p className="text-xs text-gray-500 mt-1 font-sans">
-            Secure Passwordless Login via One-Time Verification Code (OTP)
+            {authModalTab === "login" 
+              ? "Access your luxury orders, cart & favorites instantly" 
+              : "Register using your email & mobile number for a secure account"
+            }
           </p>
         </div>
 
-        <div className="px-6 py-6 flex-1 overflow-y-auto">
-          {/* Sandbox alert when Supabase isn't configured or sandbox mode is forced */}
-          {(!isSupabaseConfigured || forceSandboxMode) && (
-            <div className="mb-5 bg-amber-50 border border-amber-200 p-3 rounded-xl flex items-start space-x-2.5 animate-fade-in">
-              <AlertCircle className="w-4 h-4 text-[#A68352] mt-0.5 flex-shrink-0" />
-              <div className="text-[11px] text-amber-950 leading-normal">
-                <strong>Local Demo Sandbox Active</strong>
-                <p className="mt-0.5 text-amber-900/85">
-                  Type any email and use verification code <code className="bg-amber-100 px-1 py-0.5 rounded font-mono font-bold text-amber-950">123456</code> to complete instantly.
-                </p>
-              </div>
-            </div>
-          )}
-
+        <div className="px-6 py-6 flex-1 overflow-y-auto max-h-[75vh]">
           {/* Success message banner */}
           {successMsg && (
             <motion.div 
@@ -196,76 +224,105 @@ export function AuthModal() {
             <motion.div 
               initial={{ opacity: 0, y: -5 }}
               animate={{ opacity: 1, y: 0 }}
-              className="mb-5 bg-rose-50 border border-rose-200 p-3 rounded-xl flex flex-col space-y-2.5"
+              className="mb-5 bg-rose-50 border border-rose-200 p-3 rounded-xl flex items-start space-x-2.5"
             >
-              <div className="flex items-start space-x-2.5">
-                <AlertCircle className="w-4.5 h-4.5 text-rose-600 mt-0.5 flex-shrink-0" />
-                <div className="text-[12px] text-rose-950 leading-normal font-sans">
-                  {activeError}
+              <AlertCircle className="w-4.5 h-4.5 text-rose-600 mt-0.5 flex-shrink-0" />
+              <div className="text-[12px] text-rose-950 leading-normal font-sans">
+                {activeError}
+              </div>
+            </motion.div>
+          )}
+
+          {/* LOGIN FORM */}
+          {authModalTab === "login" ? (
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div className="space-y-1.5">
+                <label htmlFor="loginIdInput" className="block text-xs font-medium text-gray-700">
+                  Email Address or Mobile Number
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
+                    <User className="w-4.5 h-4.5" />
+                  </div>
+                  <input
+                    id="loginIdInput"
+                    type="text"
+                    required
+                    placeholder="e.g. you@example.com or +91987654321"
+                    value={identifier}
+                    onChange={(e) => setIdentifier(e.target.value)}
+                    className="block w-full pl-10 pr-3 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-[#C5A059] focus:border-[#C5A059] transition-all"
+                  />
                 </div>
               </div>
-              {isSupabaseConfigured && !forceSandboxMode && (
-                <div className="bg-rose-100/40 p-2.5 rounded-lg border border-rose-200 text-[11px] text-rose-900 leading-normal font-sans mt-1">
-                  <p className="font-semibold mb-1">💡 Developer Option</p>
-                  <p className="mb-2">If your Supabase keys are not set up or are currently invalid, you can bypass this connection error and switch to the Local Demo Sandbox to continue testing logins.</p>
+
+              <div className="space-y-1.5">
+                <label htmlFor="loginPasswordInput" className="block text-xs font-medium text-gray-700">
+                  Password
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
+                    <Lock className="w-4.5 h-4.5" />
+                  </div>
+                  <input
+                    id="loginPasswordInput"
+                    type={showPassword ? "text" : "password"}
+                    required
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="block w-full pl-10 pr-10 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-[#C5A059] focus:border-[#C5A059] transition-all"
+                  />
                   <button
                     type="button"
-                    onClick={() => {
-                      enableSandboxMode();
-                      setLocalError(null);
-                    }}
-                    className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded font-medium text-[10px] uppercase tracking-wider cursor-pointer transition-colors"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
                   >
-                    Switch to Sandbox Mode
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
-              )}
-            </motion.div>
-          )}
+              </div>
 
-          {/* MOCK OTP HELPER POPUP */}
-          {mockOtp && (
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className="mb-5 bg-gold-primary/10 border border-gold-primary/30 p-3.5 rounded-xl text-center shadow-xs"
-            >
-              <p className="text-[11px] uppercase tracking-wider text-gray-500 font-mono font-medium">
-                🔑 Simulated OTP Inbox
-              </p>
-              <p className="text-2xl font-mono font-bold tracking-[0.4em] text-gray-900 my-1.5 ml-2.5">
-                {mockOtp}
-              </p>
-              <p className="text-[10px] text-gray-500">
-                Click the code to copy or type it below to log in.
-              </p>
-            </motion.div>
-          )}
-
-          {/* STEP 1: REQUEST CODE */}
-          {!otpSent ? (
-            <form onSubmit={handleSendOtp} className="space-y-4">
-              {authModalTab === "signup" && (
-                <div className="space-y-1.5">
-                  <label htmlFor="fullNameInput" className="block text-xs font-medium text-gray-700">
-                    Full Name
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
-                      <User className="w-4.5 h-4.5" />
-                    </div>
-                    <input
-                      id="fullNameInput"
-                      type="text"
-                      required
-                      placeholder="e.g. Alexander Mercer"
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      className="block w-full pl-10 pr-3 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-[#C5A059] focus:border-[#C5A059] transition-all"
-                    />
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full flex items-center justify-center space-x-2 py-3 px-4 bg-gray-950 hover:bg-[#C5A059] text-white hover:text-black font-semibold rounded-xl text-xs uppercase tracking-wider transition-colors duration-200 shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>Signing In...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Sign In Securely</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
+              </button>
+            </form>
+          ) : (
+            /* SIGNUP FORM */
+            <form onSubmit={handleSignup} className="space-y-4">
+              <div className="space-y-1.5">
+                <label htmlFor="fullNameInput" className="block text-xs font-medium text-gray-700">
+                  Full Name
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
+                    <User className="w-4.5 h-4.5" />
                   </div>
+                  <input
+                    id="fullNameInput"
+                    type="text"
+                    required
+                    placeholder="e.g. Alexander Mercer"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    className="block w-full pl-10 pr-3 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-[#C5A059] focus:border-[#C5A059] transition-all"
+                  />
                 </div>
-              )}
+              </div>
 
               <div className="space-y-1.5">
                 <label htmlFor="emailInput" className="block text-xs font-medium text-gray-700">
@@ -287,122 +344,100 @@ export function AuthModal() {
                 </div>
               </div>
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full flex items-center justify-center space-x-2 py-3 px-4 bg-gray-950 hover:bg-gold-primary text-white hover:text-black font-semibold rounded-xl text-xs uppercase tracking-wider transition-colors duration-200 shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {loading ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>Sending Code...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Send Verification Code</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </>
-                )}
-              </button>
-            </form>
-          ) : (
-            /* STEP 2: VERIFY CODE */
-            <form onSubmit={handleVerifyOtp} className="space-y-5">
-              <div className="text-center bg-gray-50 p-3 rounded-xl border border-gray-100">
-                <p className="text-[11px] text-gray-500 font-sans">
-                  Verifying <span className="font-semibold text-gray-800">{email}</span>
-                </p>
-                <button
-                  type="button"
-                  onClick={handleResetForm}
-                  className="text-[10px] text-gold-accent hover:text-gold-primary font-semibold underline mt-1 block mx-auto"
-                >
-                  Change Email / Reset Form
-                </button>
+              <div className="space-y-1.5">
+                <label htmlFor="mobileInput" className="block text-xs font-medium text-gray-700">
+                  Mobile Number
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
+                    <Phone className="w-4.5 h-4.5" />
+                  </div>
+                  <input
+                    id="mobileInput"
+                    type="tel"
+                    required
+                    placeholder="e.g. +91 98765 43210"
+                    value={mobile}
+                    onChange={(e) => setMobile(e.target.value)}
+                    className="block w-full pl-10 pr-3 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-[#C5A059] focus:border-[#C5A059] transition-all"
+                  />
+                </div>
               </div>
 
               <div className="space-y-1.5">
-                <label htmlFor="otpInput" className="block text-xs font-medium text-gray-700 text-center">
-                  Enter 6-Digit OTP Verification Code
+                <label htmlFor="signupPasswordInput" className="block text-xs font-medium text-gray-700">
+                  Password (min. 6 characters)
                 </label>
-                <div className="relative max-w-[240px] mx-auto">
+                <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
                     <Lock className="w-4.5 h-4.5" />
                   </div>
                   <input
-                    id="otpInput"
-                    type="text"
+                    id="signupPasswordInput"
+                    type={showPassword ? "text" : "password"}
                     required
-                    maxLength={10}
-                    placeholder="e.g. 123456"
-                    value={otpToken}
-                    onChange={(e) => setOtpToken(e.target.value.replace(/[^0-9]/g, ""))}
-                    className="block w-full text-center pl-10 pr-3 py-2.5 text-lg font-mono font-bold tracking-widest bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-[#C5A059] focus:border-[#C5A059] transition-all"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="block w-full pl-10 pr-10 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-[#C5A059] focus:border-[#C5A059] transition-all"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
                 </div>
               </div>
 
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full flex items-center justify-center space-x-2 py-3 px-4 bg-gray-950 hover:bg-gold-primary text-white hover:text-black font-semibold rounded-xl text-xs uppercase tracking-wider transition-colors duration-200 shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full flex items-center justify-center space-x-2 py-3 px-4 bg-gray-950 hover:bg-[#C5A059] text-white hover:text-black font-semibold rounded-xl text-xs uppercase tracking-wider transition-colors duration-200 shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? (
                   <>
                     <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>Verifying Code...</span>
+                    <span>Creating Account...</span>
                   </>
                 ) : (
                   <>
-                    <ShieldCheck className="w-4 h-4" />
-                    <span>Verify & Continue</span>
+                    <ShieldCheck className="w-4.5 h-4.5 animate-pulse" />
+                    <span>Create My Account</span>
                   </>
                 )}
               </button>
-
-              <div className="text-center">
-                <button
-                  type="button"
-                  disabled={loading}
-                  onClick={handleSendOtp}
-                  className="text-xs text-gray-500 hover:text-gold-accent transition-colors py-1.5 flex items-center justify-center space-x-1 mx-auto"
-                >
-                  <RefreshCw className="w-3.5 h-3.5" />
-                  <span>Resend Code</span>
-                </button>
-              </div>
             </form>
           )}
         </div>
 
-        {/* Footer Link: Switch between Login & Register tabs */}
-        {!otpSent && (
-          <div className="bg-gray-50 py-4 px-6 border-t border-gray-100 text-center text-xs">
-            {authModalTab === "login" ? (
-              <p className="text-gray-500 font-sans">
-                Don't have an account?{" "}
-                <button
-                  type="button"
-                  onClick={() => openAuthModal("signup")}
-                  className="text-gold-accent hover:text-gold-primary font-semibold transition-colors focus:outline-hidden"
-                >
-                  Create Account
-                </button>
-              </p>
-            ) : (
-              <p className="text-gray-500 font-sans">
-                Already have an account?{" "}
-                <button
-                  type="button"
-                  onClick={() => openAuthModal("login")}
-                  className="text-gold-accent hover:text-gold-primary font-semibold transition-colors focus:outline-hidden"
-                >
-                  Sign In
-                </button>
-              </p>
-            )}
-          </div>
-        )}
+        {/* Footer Link: Switch between Login & Signup tabs */}
+        <div className="bg-gray-50 py-4 px-6 border-t border-gray-100 text-center text-xs">
+          {authModalTab === "login" ? (
+            <p className="text-gray-500 font-sans">
+              Don't have an account?{" "}
+              <button
+                type="button"
+                onClick={() => openAuthModal("signup")}
+                className="text-[#C5A059] hover:text-[#b08b47] font-semibold transition-colors focus:outline-hidden"
+              >
+                Create Account
+              </button>
+            </p>
+          ) : (
+            <p className="text-gray-500 font-sans">
+              Already have an account?{" "}
+              <button
+                type="button"
+                onClick={() => openAuthModal("login")}
+                className="text-[#C5A059] hover:text-[#b08b47] font-semibold transition-colors focus:outline-hidden"
+              >
+                Sign In
+              </button>
+            </p>
+          )}
+        </div>
       </motion.div>
     </div>
   );

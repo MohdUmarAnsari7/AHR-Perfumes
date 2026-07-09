@@ -13,10 +13,12 @@ export interface FavoriteItem {
 
 interface FavoritesStore {
   items: FavoriteItem[];
+  itemsByUser: Record<string, FavoriteItem[]>;
   toggleFavorite: (product: any) => void;
   removeItem: (id: string) => void;
   isFavorite: (id: string) => boolean;
   clearFavorites: () => void;
+  loadUserFavorites: (userId: string) => void;
   isOpen: boolean;
   setIsOpen: (isOpen: boolean) => void;
 }
@@ -25,44 +27,78 @@ export const useFavoritesStore = create<FavoritesStore>()(
   persist(
     (set, get) => ({
       items: [],
+      itemsByUser: {},
       isOpen: false,
       setIsOpen: (isOpen) => set({ isOpen }),
+      loadUserFavorites: (userId) => {
+        if (!userId) return;
+        const stringUserId = String(userId);
+        set((state) => ({
+          items: state.itemsByUser?.[stringUserId] || [],
+        }));
+      },
       toggleFavorite: (product) => {
-        const isLoggedIn = useAuthStore.getState().isLoggedIn;
-        if (!isLoggedIn) {
+        const user = useAuthStore.getState().user;
+        if (!user) {
           useAuthStore.getState().openAuthModal("signup");
           return;
         }
+        const stringUserId = String(user.id);
         set((state) => {
           const idStr = String(product.id);
-          const exists = state.items.some((i) => String(i.id) === idStr);
+          const currentItems = state.itemsByUser?.[stringUserId] || [];
+          const exists = currentItems.some((i) => String(i.id) === idStr);
+          let updatedItems: FavoriteItem[];
+          
           if (exists) {
-            return {
-              items: state.items.filter((i) => String(i.id) !== idStr),
-            };
+            updatedItems = currentItems.filter((i) => String(i.id) !== idStr);
           } else {
-            return {
-              items: [
-                ...state.items,
-                {
-                  id: idStr,
-                  name: product.name,
-                  category: product.category,
-                  price: Number(product.price),
-                  image: product.image,
-                  rating: product.rating,
-                },
-              ],
-            };
+            updatedItems = [
+              ...currentItems,
+              {
+                id: idStr,
+                name: product.name,
+                category: product.category,
+                price: Number(product.price),
+                image: product.image,
+                rating: product.rating,
+              },
+            ];
           }
+
+          return {
+            items: updatedItems,
+            itemsByUser: {
+              ...(state.itemsByUser || {}),
+              [stringUserId]: updatedItems,
+            },
+          };
         });
       },
-      removeItem: (id) => set((state) => ({
-        items: state.items.filter((item) => String(item.id) !== String(id)),
-      })),
-      isFavorite: (id) => {
+      removeItem: (id) => {
+        const user = useAuthStore.getState().user;
+        if (!user) return;
+        const stringUserId = String(user.id);
         const idStr = String(id);
-        return get().items.some((item) => String(item.id) === idStr);
+        set((state) => {
+          const currentItems = state.itemsByUser?.[stringUserId] || [];
+          const updatedItems = currentItems.filter((item) => String(item.id) !== idStr);
+          return {
+            items: updatedItems,
+            itemsByUser: {
+              ...(state.itemsByUser || {}),
+              [stringUserId]: updatedItems,
+            },
+          };
+        });
+      },
+      isFavorite: (id) => {
+        const user = useAuthStore.getState().user;
+        if (!user) return false;
+        const stringUserId = String(user.id);
+        const idStr = String(id);
+        const currentItems = get().itemsByUser?.[stringUserId] || [];
+        return currentItems.some((item) => String(item.id) === idStr);
       },
       clearFavorites: () => set({ items: [] }),
     }),

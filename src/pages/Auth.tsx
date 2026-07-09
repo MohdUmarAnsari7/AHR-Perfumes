@@ -7,6 +7,7 @@ import { isSupabaseConfigured } from "../lib/supabase";
 import { 
   User, 
   Mail, 
+  Phone,
   Database, 
   ShieldCheck, 
   LogOut, 
@@ -51,7 +52,7 @@ export default function Auth() {
               
               <div className="flex items-center space-x-3 text-xs font-mono text-gray-500 border-t border-gray-800 pt-4">
                 <ShieldCheck className="w-4 h-4 text-[#C5A059] flex-shrink-0" />
-                <span>Secured by Passwordless OTP</span>
+                <span>Secured by Custom Credentials</span>
               </div>
             </div>
           </div>
@@ -84,6 +85,16 @@ export default function Auth() {
                       <p className="text-sm font-medium text-gray-800 font-mono">{user?.email}</p>
                     </div>
                   </div>
+
+                  {user?.mobile && (
+                    <div className="flex items-center space-x-3 border-b border-gray-200 pb-3">
+                      <Phone className="w-4 h-4 text-[#C5A059]" />
+                      <div>
+                        <p className="text-[10px] uppercase tracking-wider text-gray-400 font-mono">Mobile Number</p>
+                        <p className="text-sm font-medium text-gray-800 font-mono">{user?.mobile}</p>
+                      </div>
+                    </div>
+                  )}
                   
                   <div className="flex items-center space-x-3 border-b border-gray-200 pb-3">
                     <User className="w-4 h-4 text-[#C5A059]" />
@@ -160,7 +171,7 @@ export default function Auth() {
 
                 <div className="border-t border-gray-150 pt-5 text-[11px] text-gray-400 font-sans flex items-center justify-center md:justify-start gap-2">
                   <Lock className="w-3.5 h-3.5 text-[#C5A059]" />
-                  <span>Verified email access. No passwords required.</span>
+                  <span>Verified credentials access. Secured by password.</span>
                 </div>
               </motion.div>
             )}
