@@ -45,6 +45,7 @@ export interface WebsiteSectionData {
         title: string;
         description: string;
         image: string;
+        mobileImage?: string;
         buttonText: string;
         buttonLink: string;
       }>;

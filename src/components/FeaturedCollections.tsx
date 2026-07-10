@@ -101,12 +101,22 @@ export function FeaturedCollections() {
               transition={{ duration: 0.8 }}
               className="absolute inset-0"
             >
+               {/* Desktop Image */}
                <img 
-                 src={currentTab.image} 
+                 src={currentTab.image || undefined} 
                  alt={currentTab.title} 
-                 className="w-full h-full object-cover opacity-90"
+                 className={`w-full h-full object-cover opacity-90 ${currentTab.mobileImage && currentTab.mobileImage !== "" ? "hidden md:block" : "block"}`}
                  referrerPolicy="no-referrer"
                />
+               {/* Mobile Image */}
+               {currentTab.mobileImage && currentTab.mobileImage !== "" && (
+                 <img 
+                   src={currentTab.mobileImage || undefined} 
+                   alt={currentTab.title} 
+                   className="w-full h-full object-cover opacity-90 md:hidden block"
+                   referrerPolicy="no-referrer"
+                 />
+               )}
                <div className="absolute inset-0 bg-black/65 backdrop-blur-[1px]"></div>
             </motion.div>
 

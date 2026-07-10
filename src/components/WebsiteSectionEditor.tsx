@@ -122,7 +122,7 @@ function SectionImageLibrary({
                 isSelected ? "border-gold-primary ring-1 ring-gold-primary" : "border-neutral-200 hover:border-gold-primary"
               }`}
             >
-              <img src={url} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+              <img src={url || undefined} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
               {isSelected && (
                 <div className="absolute inset-0 bg-gold-primary/25 flex items-center justify-center">
                   <div className="bg-gold-primary text-neutral-900 rounded-full p-0.5">
@@ -578,48 +578,96 @@ function SectionImageLibrary({
                     </button>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {/* Image */}
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-bold uppercase text-neutral-500 tracking-wider block">Tab Banner Image</label>
-                      <div className="relative aspect-video rounded-lg overflow-hidden border border-[#F0EAE1] bg-white group hover:border-gold-primary transition-colors">
-                        <img 
-                          src={tab.image || undefined} 
-                          alt="" 
-                          className="w-full h-full object-cover"
-                          referrerPolicy="no-referrer"
-                        />
-                        <label className="absolute inset-0 bg-black/50 opacity-0 hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity text-white text-xs font-semibold uppercase tracking-wider space-x-1">
-                          <Upload className="w-4 h-4" />
-                          <span>Upload Banner</span>
-                          <input 
-                            type="file" 
-                            accept="image/*" 
-                            className="hidden" 
-                            onChange={(e) => {
-                              handleUploadImageLocal(e, "banner", (url) => {
-                                const tabsCopy = [...home.featured_collections.tabs];
-                                tabsCopy[idx].image = url;
-                                updateField("home", "featured_collections", "tabs", tabsCopy);
-                              });
-                            }}
-                          />
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Left: Image Config (Desktop and Mobile side-by-side on sm+) */}
+                    <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4 border-b lg:border-b-0 lg:border-r border-[#F7F4EE] pb-4 lg:pb-0 lg:pr-6">
+                      {/* Desktop Banner Image */}
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-bold uppercase text-neutral-500 tracking-wider flex items-center justify-between">
+                          <span>Desktop Banner Image</span>
+                          <span className="text-red-500 text-[9px] font-normal lowercase">(required)</span>
                         </label>
+                        <div className="relative aspect-video rounded-lg overflow-hidden border border-[#F0EAE1] bg-white hover:border-gold-primary transition-colors group/desk">
+                          <img 
+                            src={tab.image || undefined} 
+                            alt="" 
+                            className="w-full h-full object-cover"
+                            referrerPolicy="no-referrer"
+                          />
+                          <label className="absolute inset-0 bg-black/50 opacity-0 group-hover/desk:opacity-100 flex items-center justify-center cursor-pointer transition-opacity text-white text-[10px] font-semibold uppercase tracking-wider space-x-1">
+                            <Upload className="w-3.5 h-3.5" />
+                            <span>Upload Desktop</span>
+                            <input 
+                              type="file" 
+                              accept="image/*" 
+                              className="hidden" 
+                              onChange={(e) => {
+                                handleUploadImageLocal(e, "banner", (url) => {
+                                  const tabsCopy = [...home.featured_collections.tabs];
+                                  tabsCopy[idx].image = url;
+                                  updateField("home", "featured_collections", "tabs", tabsCopy);
+                                });
+                              }}
+                            />
+                          </label>
+                        </div>
+                        <SectionImageLibrary 
+                          section="banner" 
+                          currentImage={tab.image} 
+                          onSelect={(url) => {
+                            const tabsCopy = [...home.featured_collections.tabs];
+                            tabsCopy[idx].image = url;
+                            updateField("home", "featured_collections", "tabs", tabsCopy);
+                          }} 
+                          showToast={showToast} 
+                        />
                       </div>
-                      <SectionImageLibrary 
-                        section="banner" 
-                        currentImage={tab.image} 
-                        onSelect={(url) => {
-                          const tabsCopy = [...home.featured_collections.tabs];
-                          tabsCopy[idx].image = url;
-                          updateField("home", "featured_collections", "tabs", tabsCopy);
-                        }} 
-                        showToast={showToast} 
-                      />
+
+                      {/* Mobile Banner Image */}
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-bold uppercase text-neutral-500 tracking-wider flex items-center justify-between">
+                          <span>Mobile Banner Image</span>
+                          <span className="text-neutral-400 text-[9px] font-normal lowercase">(optional - falls back to desktop)</span>
+                        </label>
+                        <div className="relative aspect-video rounded-lg overflow-hidden border border-[#F0EAE1] bg-white hover:border-gold-primary transition-colors group/mobi">
+                          <img 
+                            src={tab.mobileImage || tab.image || undefined} 
+                            alt="" 
+                            className="w-full h-full object-cover"
+                            referrerPolicy="no-referrer"
+                          />
+                          <label className="absolute inset-0 bg-black/50 opacity-0 group-hover/mobi:opacity-100 flex items-center justify-center cursor-pointer transition-opacity text-white text-[10px] font-semibold uppercase tracking-wider space-x-1">
+                            <Upload className="w-3.5 h-3.5" />
+                            <span>Upload Mobile</span>
+                            <input 
+                              type="file" 
+                              accept="image/*" 
+                              className="hidden" 
+                              onChange={(e) => {
+                                handleUploadImageLocal(e, "banner", (url) => {
+                                  const tabsCopy = [...home.featured_collections.tabs];
+                                  tabsCopy[idx].mobileImage = url;
+                                  updateField("home", "featured_collections", "tabs", tabsCopy);
+                                });
+                              }}
+                            />
+                          </label>
+                        </div>
+                        <SectionImageLibrary 
+                          section="banner" 
+                          currentImage={tab.mobileImage || tab.image} 
+                          onSelect={(url) => {
+                            const tabsCopy = [...home.featured_collections.tabs];
+                            tabsCopy[idx].mobileImage = url;
+                            updateField("home", "featured_collections", "tabs", tabsCopy);
+                          }} 
+                          showToast={showToast} 
+                        />
+                      </div>
                     </div>
 
-                    {/* Texts - only edit tab name */}
-                    <div className="md:col-span-2 flex flex-col justify-center">
+                    {/* Right: Texts - only edit tab name */}
+                    <div className="flex flex-col justify-center">
                       <div>
                         <label className="text-[10px] font-bold uppercase text-neutral-500 tracking-wider block mb-1">Tab / Category Name</label>
                         <input 
