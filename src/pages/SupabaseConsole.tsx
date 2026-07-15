@@ -377,18 +377,24 @@ export default function SupabaseConsole() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ image: base64Content })
         });
-        if (response.ok) {
-          const resData = await response.json();
-          onComplete(resData.url);
-          showToast("Image uploaded successfully!", "success");
-          
-          // Also automatically add uploaded asset to Media Library gallery lists
-          await fetch("/api/media-library", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ image_url: resData.url, section })
-          });
-          loadMedia();
+         if (response.ok) {
+          const contentType = response.headers.get("content-type");
+          if (contentType && contentType.includes("application/json")) {
+            const resData = await response.json();
+            onComplete(resData.url);
+            showToast("Image uploaded successfully!", "success");
+            
+            // Also automatically add uploaded asset to Media Library gallery lists
+            await fetch("/api/media-library", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ image_url: resData.url, section })
+            });
+            loadMedia();
+          } else {
+            console.error("Non-JSON upload response:", await response.text());
+            showToast("Invalid response format received from server.", "error");
+          }
         } else {
           showToast("Server rejected asset upload.", "error");
         }
