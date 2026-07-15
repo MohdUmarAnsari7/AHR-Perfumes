@@ -46,7 +46,7 @@ export function Hero() {
           <div className="absolute inset-0">
             {/* Desktop Banner Image */}
             <img
-              src={slides[currentSlide].image}
+              src={slides[currentSlide].image || undefined}
               alt={slides[currentSlide].title}
               className={`w-full h-full object-cover opacity-100 ${slides[currentSlide].mobileImage ? "hidden md:block" : "block"}`}
               referrerPolicy="no-referrer"
@@ -54,7 +54,7 @@ export function Hero() {
             {/* Mobile Banner Image */}
             {slides[currentSlide].mobileImage && (
               <img
-                src={slides[currentSlide].mobileImage}
+                src={slides[currentSlide].mobileImage || undefined}
                 alt={slides[currentSlide].title}
                 className="w-full h-full object-cover opacity-100 md:hidden block"
                 referrerPolicy="no-referrer"

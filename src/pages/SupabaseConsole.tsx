@@ -1492,7 +1492,7 @@ export default function SupabaseConsole() {
                               <div className="flex items-center space-x-4 bg-white p-3 border border-neutral-200 rounded-lg">
                                 {prodForm.image ? (
                                   <div className="relative w-16 h-16 rounded-md border border-neutral-300 overflow-hidden bg-neutral-50">
-                                    <img src={prodForm.image} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                                    <img src={prodForm.image || undefined} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                                     <button 
                                       type="button"
                                       onClick={() => setProdForm({ ...prodForm, image: "" })}

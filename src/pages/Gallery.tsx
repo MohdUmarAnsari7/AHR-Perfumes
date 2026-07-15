@@ -55,7 +55,7 @@ export default function Gallery() {
       <section className="relative w-full h-[140px] sm:h-[180px] md:h-[35vh] xl:h-[45vh] flex items-center justify-center overflow-hidden bg-neutral-900 mt-[64px] sm:mt-[72px]">
         <div className="absolute inset-0">
           <img
-            src={galleryHero.bgImage}
+            src={galleryHero.bgImage || undefined}
             alt={galleryHero.title}
             className="w-full h-full object-cover opacity-80"
             referrerPolicy="no-referrer"

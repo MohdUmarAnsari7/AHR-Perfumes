@@ -14,7 +14,7 @@ export function ContactHero() {
     <section className="relative w-full h-[18vh] sm:h-[22vh] md:h-[26vh] flex items-center justify-center overflow-hidden bg-neutral-900 mt-[72px]">
       <div className="absolute inset-0">
         <img
-          src={hero.bgImage}
+          src={hero.bgImage || undefined}
           alt={hero.title}
           className="w-full h-full object-cover opacity-100 scale-100"
           referrerPolicy="no-referrer"

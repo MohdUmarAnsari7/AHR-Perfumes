@@ -410,7 +410,7 @@ export default function Checkout() {
                         <div key={item.id} className="flex items-center justify-between gap-4 py-1 text-xs">
                           <div className="flex items-center space-x-3">
                             <img 
-                              src={item.image} 
+                              src={item.image || null} 
                               alt={item.name} 
                               className="w-12 h-12 object-cover rounded-lg border border-stone-100"
                               referrerPolicy="no-referrer"
