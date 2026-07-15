@@ -56,7 +56,7 @@ export default function About() {
       <section className="relative w-full h-[140px] sm:h-[180px] md:h-[35vh] xl:h-[50vh] flex items-center justify-center overflow-hidden bg-neutral-900 mt-[64px] sm:mt-[72px]">
         <div className="absolute inset-0">
           <img
-            src={hero.bgImage || undefined}
+            src={hero.bgImage || null}
             alt={hero.title}
             className="w-full h-full object-cover"
             referrerPolicy="no-referrer"
@@ -99,7 +99,7 @@ export default function About() {
               <div className="aspect-[4/5] bg-white border border-[#F0EAE1] p-2 sm:p-3 rounded-2xl shadow-xs">
                 <div className="w-full h-full overflow-hidden relative border border-gray-200/50 rounded-lg">
                   <img 
-                    src={story.storyImage || undefined} 
+                    src={story.storyImage || null} 
                     alt="Our Story" 
                     className="w-full h-full object-cover opacity-80"
                     referrerPolicy="no-referrer"

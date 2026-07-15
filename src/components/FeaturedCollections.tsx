@@ -102,7 +102,7 @@ export function FeaturedCollections() {
               className="absolute inset-0"
             >
                <img 
-                 src={currentTab.image || undefined} 
+                 src={currentTab.image || null} 
                  alt={currentTab.title} 
                  className="w-full h-full object-cover opacity-90"
                  referrerPolicy="no-referrer"

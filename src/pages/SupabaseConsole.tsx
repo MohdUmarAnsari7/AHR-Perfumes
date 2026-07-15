@@ -1710,7 +1710,7 @@ export default function SupabaseConsole() {
                                   <td className="py-3 px-4">
                                     <div className="flex items-center space-x-3">
                                       <div className="w-10 h-10 rounded border border-neutral-200 overflow-hidden flex-shrink-0">
-                                        <img src={p.image} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                                        <img src={p.image || null} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                                       </div>
                                       <div>
                                         <span className="font-serif font-bold text-neutral-800 text-sm block">{p.name}</span>
@@ -1917,7 +1917,7 @@ export default function SupabaseConsole() {
                       <div key={cat.id || cat.title} className="bg-white border border-[#F0EAE1] rounded-2xl p-5 shadow-xs flex flex-col justify-between">
                         <div>
                           <div className="w-full h-32 rounded-xl overflow-hidden border border-neutral-100 mb-4">
-                            <img src={cat.image} className="w-full h-full object-cover" />
+                            <img src={cat.image || null} className="w-full h-full object-cover" />
                           </div>
                           <h4 className="font-serif font-bold text-neutral-800 uppercase tracking-widest text-sm">{cat.title}</h4>
                           <p className="text-xs text-neutral-500 mt-1 line-clamp-2">{cat.description || "No summary provided."}</p>

@@ -14,7 +14,7 @@ export function ContactCTA() {
     <section className="relative py-10 bg-white overflow-hidden flex items-center justify-center text-center">
       <div className="absolute inset-0">
         <img 
-          src={bgImage || undefined} 
+          src={bgImage || null} 
           alt="Contact CTA Background" 
           className="w-full h-full object-cover opacity-100"
           referrerPolicy="no-referrer"
