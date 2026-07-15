@@ -772,9 +772,6 @@ async function startServer() {
    app.use(express.json({ limit: "200mb" }));
   app.use(express.urlencoded({ limit: "200mb", extended: true }));
 
-  // Serve local uploads
-  app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
-
   // API ROUTES
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok" });
@@ -2461,43 +2458,11 @@ async function startServer() {
           });
         }
       } else {
-        console.warn("Supabase client is not initialized on backend. Saving to local public uploads fallback...");
-        try {
-          let base64Data = image;
-          let mimeType = "image/jpeg";
-          let extension = "jpg";
-
-          if (image.startsWith("data:")) {
-            const match = image.match(/^data:([^;]+);base64,(.*)$/);
-            if (match) {
-              mimeType = match[1];
-              base64Data = match[2];
-              const extMatch = mimeType.match(/\/([a-zA-Z0-9]+)$/);
-              if (extMatch) {
-                extension = extMatch[1];
-              }
-            }
-          }
-
-          const buffer = Buffer.from(base64Data, "base64");
-          const fileName = `upload_${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${extension}`;
-          
-          const uploadsDir = path.join(process.cwd(), "uploads");
-          if (!fs.existsSync(uploadsDir)) {
-            fs.mkdirSync(uploadsDir, { recursive: true });
-          }
-          
-          const filePath = path.join(uploadsDir, fileName);
-          fs.writeFileSync(filePath, buffer);
-          
-          console.log(`- Successfully saved upload locally to: ${filePath}`);
-          const localUrl = `/uploads/${fileName}`;
-          return res.json({ url: localUrl });
-        } catch (localErr: any) {
-          console.error("Local upload fallback error:", localErr);
-          // If local storage fails for some reason, fallback to returning the original base64 URL so it still displays
-          return res.json({ url: image });
-        }
+        console.warn("Supabase client is not initialized on backend.");
+        return res.status(503).json({
+          error: "Supabase storage is not configured",
+          details: "Backend client could not be initialized due to missing credentials (SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY)."
+        });
       }
     } catch (error: any) {
       console.error("Upload endpoint error:", error);
