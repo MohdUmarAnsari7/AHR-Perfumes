@@ -30,6 +30,26 @@ export default function App() {
     fetchContent();
   }, [fetchInfo, fetchContent]);
 
+  // Keep Render backend active by pinging the health endpoint every 13 minutes
+  useEffect(() => {
+    const pingBackend = async () => {
+      try {
+        await fetch("/api/health");
+      } catch (err) {
+        // Silent error to prevent impacting user experience
+        console.debug("Backend keep-alive ping failed:", err);
+      }
+    };
+
+    // Ping once immediately on load
+    pingBackend();
+
+    // Set interval for every 13 minutes (13 mins * 60 secs * 1000 ms)
+    const intervalId = setInterval(pingBackend, 13 * 60 * 1000);
+
+    return () => clearInterval(intervalId);
+  }, []);
+
   return (
     <HelmetProvider>
       <BrowserRouter>
