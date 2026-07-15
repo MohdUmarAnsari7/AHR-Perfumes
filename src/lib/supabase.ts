@@ -20,13 +20,27 @@ const isPlaceholder = (val: string) => {
   );
 };
 
-// Initialize Supabase Client if not using placeholders and has valid URL
+const isValidJwt = (token: string | undefined): boolean => {
+  if (!token) return false;
+  const parts = token.split(".");
+  if (parts.length !== 3) return false;
+  try {
+    const headerDecoded = atob(parts[0]);
+    const parsed = JSON.parse(headerDecoded);
+    return typeof parsed === "object" && parsed !== null && ("alg" in parsed || "typ" in parsed);
+  } catch (e) {
+    return false;
+  }
+};
+
+// Initialize Supabase Client if not using placeholders and has valid URL and JWT key
 export const isSupabaseConfigured = Boolean(
   supabaseUrl && 
   supabaseAnonKey && 
   !isPlaceholder(supabaseUrl) && 
   !isPlaceholder(supabaseAnonKey) &&
-  /^https?:\/\//i.test(supabaseUrl)
+  /^https?:\/\//i.test(supabaseUrl) &&
+  isValidJwt(supabaseAnonKey)
 );
 
 export const supabase = isSupabaseConfigured
@@ -44,4 +58,3 @@ export function getSupabase() {
   }
   return supabase;
 }
-

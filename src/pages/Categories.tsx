@@ -95,7 +95,7 @@ export default function Categories() {
                     className="relative aspect-[3/4] sm:aspect-[16/10] overflow-hidden bg-neutral-900 border border-gray-200 block rounded-xl sm:rounded-none shadow-xs hover:shadow-md transition-shadow duration-300"
                   >
                     <img 
-                      src={category.image} 
+                      src={category.image || null} 
                       alt={category.title} 
                       className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105 opacity-80 group-hover:opacity-95"
                       referrerPolicy="no-referrer"

@@ -42,7 +42,7 @@ export const CartItemCard: React.FC<{ item: CartItem }> = ({ item }) => {
       {/* Image */}
       <div className="w-24 sm:w-32 aspect-square bg-white border border-gray-200 flex-shrink-0 overflow-hidden">
         <img 
-          src={item.image} 
+          src={item.image || null} 
           alt={item.name} 
           className="w-full h-full object-cover opacity-80" 
           referrerPolicy="no-referrer"

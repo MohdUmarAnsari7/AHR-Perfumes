@@ -43,7 +43,7 @@ export function Categories() {
               className="relative aspect-[16/9] group overflow-hidden cursor-pointer"
             >
               <img 
-                 src={category.image} 
+                 src={category.image || null} 
                  alt={category.title} 
                  className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105 opacity-70 group-hover:opacity-100"
                  referrerPolicy="no-referrer"

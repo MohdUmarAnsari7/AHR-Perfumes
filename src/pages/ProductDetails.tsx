@@ -68,7 +68,8 @@ export default function ProductDetails() {
         }
 
         if (customSizesList && customSizesList.length > 0) {
-          initialSize = customSizesList[0].size;
+          const firstSizeObj = customSizesList[0];
+          initialSize = firstSizeObj && typeof firstSizeObj === "object" && "size" in firstSizeObj ? firstSizeObj.size : String(firstSizeObj);
         } else if (data.category === "Attars") {
           initialSize = "6ml";
         } else if (data.category === "Gift Sets") {
@@ -118,8 +119,11 @@ export default function ProductDetails() {
     if (!product) return 0;
 
     if (parsedSizes.length > 0) {
-      const matched = parsedSizes.find((s: any) => s.size === selectedSize);
-      if (matched && matched.price) {
+      const matched = parsedSizes.find((s: any) => {
+        const sizeVal = s && typeof s === "object" && "size" in s ? String(s.size) : String(s);
+        return sizeVal === selectedSize;
+      });
+      if (matched && typeof matched === "object" && "price" in matched && matched.price) {
         return parseFloat(matched.price);
       }
     }
@@ -136,12 +140,12 @@ export default function ProductDetails() {
     if (!product) return null;
 
     if (parsedSizes.length > 0) {
-      const matched = parsedSizes.find((s: any) => s.size === selectedSize);
-      if (matched) {
-        if (matched.originalPrice) {
-          return parseFloat(matched.originalPrice);
-        }
-        return null;
+      const matched = parsedSizes.find((s: any) => {
+        const sizeVal = s && typeof s === "object" && "size" in s ? String(s.size) : String(s);
+        return sizeVal === selectedSize;
+      });
+      if (matched && typeof matched === "object" && "originalPrice" in matched && matched.originalPrice) {
+        return parseFloat(matched.originalPrice);
       }
     }
 
@@ -304,7 +308,12 @@ export default function ProductDetails() {
 
   const profile = getFragranceProfile(product.name, product.category);
   const sizeOptions = parsedSizes.length > 0
-    ? parsedSizes.map((s: any) => s.size)
+    ? Array.from(new Set(parsedSizes.map((s: any) => {
+        if (s && typeof s === "object" && "size" in s) {
+          return String(s.size);
+        }
+        return s ? String(s) : "";
+      }).filter(Boolean)))
     : product.category === "Attars"
       ? ["3ml", "6ml", "12ml"]
       : product.category === "Gift Sets"
@@ -368,7 +377,7 @@ export default function ProductDetails() {
                   <AnimatePresence mode="wait">
                     <motion.img
                       key={currentImgIndex}
-                      src={imagesList[currentImgIndex]}
+                      src={imagesList[currentImgIndex] || null}
                       alt={product.name}
                       initial={{ opacity: 0, scale: 1.02 }}
                       animate={{ opacity: 1, scale: 1 }}
@@ -416,7 +425,7 @@ export default function ProductDetails() {
                         }`}
                       >
                         <img 
-                          src={img} 
+                          src={img || null} 
                           alt={`${product.name} detail view ${index + 1}`} 
                           className="w-full h-full object-cover select-none"
                           referrerPolicy="no-referrer"
@@ -654,7 +663,7 @@ export default function ProductDetails() {
                   >
                     <div className="relative aspect-[4/5] overflow-hidden bg-white">
                       <img 
-                        src={p.image} 
+                        src={p.image || null} 
                         alt={p.name} 
                         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 opacity-90 group-hover:opacity-100"
                         referrerPolicy="no-referrer"

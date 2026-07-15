@@ -71,7 +71,20 @@ const isValidSupabaseUrl = (url: string | undefined): boolean => {
   return /^https?:\/\//i.test(url);
 };
 
-const supabaseClient = SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY && isValidSupabaseUrl(SUPABASE_URL)
+const isValidJwt = (token: string | undefined): boolean => {
+  if (!token) return false;
+  const parts = token.split(".");
+  if (parts.length !== 3) return false;
+  try {
+    const headerDecoded = Buffer.from(parts[0], "base64").toString("utf8");
+    const parsed = JSON.parse(headerDecoded);
+    return typeof parsed === "object" && parsed !== null && ("alg" in parsed || "typ" in parsed);
+  } catch (e) {
+    return false;
+  }
+};
+
+let supabaseClient = SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY && isValidSupabaseUrl(SUPABASE_URL) && isValidJwt(SUPABASE_SERVICE_ROLE_KEY)
   ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
       auth: {
         persistSession: false,
@@ -79,6 +92,20 @@ const supabaseClient = SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY && isValidSupab
       }
     })
   : null;
+
+const handleSupabaseError = (err: any) => {
+  const errMsg = err?.message || String(err);
+  if (
+    errMsg.includes("JWS Protected Header is invalid") ||
+    errMsg.includes("Invalid token") ||
+    errMsg.includes("Invalid API key") ||
+    err?.status === 401 ||
+    err?.statusCode === 401
+  ) {
+    console.warn("[Supabase Server Client] Invalid token or authentication error detected. Disabling Supabase client to prevent error logs.");
+    supabaseClient = null;
+  }
+};
 
 console.log("=== SUPABASE SERVER ENVIRONMENT CHECK ===");
 console.log(`- SUPABASE_URL: ${SUPABASE_URL ? (isValidSupabaseUrl(SUPABASE_URL) ? "Defined & Valid" : `Invalid ("${SUPABASE_URL}")`) : "Undefined"}`);
@@ -751,7 +778,7 @@ async function startServer() {
   });
 
   // In-memory fallback stores
-  let activeProducts = [...staticProducts];
+  let activeProducts: any[] = [...staticProducts];
   let inMemoryCart: any[] = [];
   let activeCategories: any[] = [];
   let activeGalleryImages: any[] = [];
@@ -859,23 +886,27 @@ async function startServer() {
           // Ensure bucket exists
           try {
             await supabaseClient.storage.createBucket(SUPABASE_STORAGE_BUCKET, { public: true });
-          } catch (bucketErr) {
-            // Ignore if already exists
+          } catch (bucketErr: any) {
+            handleSupabaseError(bucketErr);
           }
 
-          const { data, error } = await supabaseClient.storage
-            .from(SUPABASE_STORAGE_BUCKET)
-            .download("db_fallback_store.png");
+          if (supabaseClient) {
+            const { data, error } = await supabaseClient.storage
+              .from(SUPABASE_STORAGE_BUCKET)
+              .download("db_fallback_store.png");
 
-          if (error) {
-            console.log("[Fallback Store] No backup found or error downloading from Supabase Storage:", error.message);
-          } else if (data) {
-            const text = await data.text();
-            fs.writeFileSync(FALLBACK_STORE_PATH, text, "utf8");
-            console.log("[Fallback Store] Successfully downloaded and cached backup from Supabase Storage.");
+            if (error) {
+              console.log("[Fallback Store] No backup found or error downloading from Supabase Storage:", error.message);
+              handleSupabaseError(error);
+            } else if (data) {
+              const text = await data.text();
+              fs.writeFileSync(FALLBACK_STORE_PATH, text, "utf8");
+              console.log("[Fallback Store] Successfully downloaded and cached backup from Supabase Storage.");
+            }
           }
         } catch (supabaseErr: any) {
           console.error("[Fallback Store] Failed to download backup from Supabase Storage:", supabaseErr.message || supabaseErr);
+          handleSupabaseError(supabaseErr);
         }
       }
 
@@ -883,13 +914,25 @@ async function startServer() {
         const raw = fs.readFileSync(FALLBACK_STORE_PATH, "utf8");
         try {
           const parsed = JSON.parse(raw);
-          if (parsed.activeProducts) activeProducts = parsed.activeProducts;
+          if (parsed.activeProducts && parsed.activeProducts.length > 0) {
+            activeProducts = parsed.activeProducts;
+          } else {
+            activeProducts = [...staticProducts];
+          }
           if (parsed.inMemoryCart) {
             inMemoryCart.length = 0;
             inMemoryCart.push(...parsed.inMemoryCart);
           }
-          if (parsed.activeCategories) activeCategories = parsed.activeCategories;
-          if (parsed.activeGalleryImages) activeGalleryImages = parsed.activeGalleryImages;
+          if (parsed.activeCategories && parsed.activeCategories.length > 0) {
+            activeCategories = parsed.activeCategories;
+          } else {
+            activeCategories = [...staticCategories];
+          }
+          if (parsed.activeGalleryImages && parsed.activeGalleryImages.length > 0) {
+            activeGalleryImages = parsed.activeGalleryImages;
+          } else {
+            activeGalleryImages = [...staticGalleryImages];
+          }
           if (parsed.activeWebsiteContent) activeWebsiteContent = parsed.activeWebsiteContent;
           if (parsed.inMemoryUsers) {
             inMemoryUsers.length = 0;
@@ -950,12 +993,14 @@ async function startServer() {
           .then(({ data: uploadData, error: uploadErr }) => {
             if (uploadErr) {
               console.error("[Fallback Store] Failed to sync backup to Supabase Storage:", uploadErr.message);
+              handleSupabaseError(uploadErr);
             } else {
               console.log("[Fallback Store] Successfully synced backup to Supabase Storage.");
             }
           })
           .catch((err: any) => {
             console.error("[Fallback Store] Exception syncing backup to Supabase Storage:", err);
+            handleSupabaseError(err);
           });
       }
     } catch (err: any) {
@@ -2359,50 +2404,54 @@ async function startServer() {
           try {
             await supabaseClient.storage.createBucket(SUPABASE_STORAGE_BUCKET, { public: true });
           } catch (bucketErr: any) {
-            // Ignore if already exists
+            handleSupabaseError(bucketErr);
           }
 
-          console.log(`- Uploading file: "${fileName}" of type "${mimeType}" (${buffer.length} bytes)`);
+          if (supabaseClient) {
+            console.log(`- Uploading file: "${fileName}" of type "${mimeType}" (${buffer.length} bytes)`);
 
-          const uploadPromise = supabaseClient.storage
-            .from(SUPABASE_STORAGE_BUCKET)
-            .upload(fileName, buffer, {
-              contentType: mimeType,
-              upsert: false
-            });
-          
-          const uploadTimeout = new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error("Supabase upload timeout")), 30000)
-          );
-
-          const { data: uploadData, error: uploadErr } = await Promise.race([
-            uploadPromise,
-            uploadTimeout
-          ]);
-
-          if (uploadErr) {
-            console.error("- Supabase storage upload error details:", uploadErr);
-            return res.status(500).json({
-              error: "Supabase storage upload error",
-              details: uploadErr.message,
-              error_code: (uploadErr as any).statusCode || (uploadErr as any).status || "Unknown"
-            });
-          }
-
-          if (uploadData) {
-            const { data: publicUrlData } = supabaseClient.storage
+            const uploadPromise = supabaseClient.storage
               .from(SUPABASE_STORAGE_BUCKET)
-              .getPublicUrl(fileName);
+              .upload(fileName, buffer, {
+                contentType: mimeType,
+                upsert: false
+              });
             
-            if (publicUrlData && publicUrlData.publicUrl) {
-              console.log("- Successfully uploaded to Supabase Storage:", publicUrlData.publicUrl);
-              return res.json({ url: publicUrlData.publicUrl });
+            const uploadTimeout = new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error("Supabase upload timeout")), 30000)
+            );
+
+            const { data: uploadData, error: uploadErr } = await Promise.race([
+              uploadPromise,
+              uploadTimeout
+            ]);
+
+            if (uploadErr) {
+              console.error("- Supabase storage upload error details:", uploadErr);
+              handleSupabaseError(uploadErr);
+              return res.status(500).json({
+                error: "Supabase storage upload error",
+                details: uploadErr.message,
+                error_code: (uploadErr as any).statusCode || (uploadErr as any).status || "Unknown"
+              });
+            }
+
+            if (uploadData) {
+              const { data: publicUrlData } = supabaseClient.storage
+                .from(SUPABASE_STORAGE_BUCKET)
+                .getPublicUrl(fileName);
+              
+              if (publicUrlData && publicUrlData.publicUrl) {
+                console.log("- Successfully uploaded to Supabase Storage:", publicUrlData.publicUrl);
+                return res.json({ url: publicUrlData.publicUrl });
+              }
             }
           }
 
-          return res.status(500).json({ error: "Failed to retrieve public URL after successful upload" });
+          return res.status(500).json({ error: "Failed to upload or retrieve public URL" });
         } catch (supabaseErr: any) {
           console.error("- Supabase storage upload exception details:", supabaseErr);
+          handleSupabaseError(supabaseErr);
           return res.status(500).json({
             error: "Supabase storage upload exception",
             details: supabaseErr.message || supabaseErr

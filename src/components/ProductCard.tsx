@@ -39,7 +39,13 @@ export function ProductCard({ product, layout = "horizontal" }: ProductCardProps
   // Determine available size options
   const sizeOptions = useMemo(() => {
     if (parsedSizes.length > 0) {
-      return parsedSizes.map((s: any) => s.size);
+      const sizes = parsedSizes.map((s: any) => {
+        if (s && typeof s === "object" && "size" in s) {
+          return String(s.size);
+        }
+        return s ? String(s) : "";
+      }).filter(Boolean);
+      return Array.from(new Set(sizes));
     }
     if (product.category === "Attars") {
       return ["3ml", "6ml", "12ml"];
@@ -58,8 +64,11 @@ export function ProductCard({ product, layout = "horizontal" }: ProductCardProps
   // Calculate dynamic price based on selected size
   const displayPrice = useMemo(() => {
     if (parsedSizes.length > 0) {
-      const matched = parsedSizes.find((s: any) => s.size === selectedSize);
-      if (matched && matched.price) {
+      const matched = parsedSizes.find((s: any) => {
+        const sizeVal = s && typeof s === "object" && "size" in s ? String(s.size) : String(s);
+        return sizeVal === selectedSize;
+      });
+      if (matched && typeof matched === "object" && "price" in matched && matched.price) {
         return parseFloat(matched.price);
       }
     }
@@ -75,8 +84,11 @@ export function ProductCard({ product, layout = "horizontal" }: ProductCardProps
   // Calculate original price (if any)
   const displayOriginalPrice = useMemo(() => {
     if (parsedSizes.length > 0) {
-      const matched = parsedSizes.find((s: any) => s.size === selectedSize);
-      if (matched && matched.originalPrice) {
+      const matched = parsedSizes.find((s: any) => {
+        const sizeVal = s && typeof s === "object" && "size" in s ? String(s.size) : String(s);
+        return sizeVal === selectedSize;
+      });
+      if (matched && typeof matched === "object" && "originalPrice" in matched && matched.originalPrice) {
         return parseFloat(matched.originalPrice);
       }
       return null;
@@ -133,7 +145,7 @@ export function ProductCard({ product, layout = "horizontal" }: ProductCardProps
           <div className="relative aspect-[4/5] overflow-hidden rounded-[12px] bg-stone-50 mb-2.5">
             <Link to={`/product/${product.id}`} className="block w-full h-full">
               <img 
-                src={product.image} 
+                src={product.image || null} 
                 alt={product.name} 
                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                 referrerPolicy="no-referrer"
@@ -245,7 +257,7 @@ export function ProductCard({ product, layout = "horizontal" }: ProductCardProps
               <div className="w-[43%] flex-shrink-0 relative aspect-[4/5] overflow-hidden rounded-[12px] bg-stone-50">
                 <Link to={`/product/${product.id}`} className="block w-full h-full">
                   <img 
-                    src={product.image} 
+                    src={product.image || null} 
                     alt={product.name} 
                     className="w-full h-full object-cover"
                     referrerPolicy="no-referrer"
@@ -347,7 +359,7 @@ export function ProductCard({ product, layout = "horizontal" }: ProductCardProps
             <div className="relative aspect-[4/5] overflow-hidden bg-white">
               <Link to={`/product/${product.id}`} className="block w-full h-full">
                 <img 
-                  src={product.image} 
+                  src={product.image || null} 
                   alt={product.name} 
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                   referrerPolicy="no-referrer"

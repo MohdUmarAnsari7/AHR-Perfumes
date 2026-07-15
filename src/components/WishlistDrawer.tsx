@@ -89,7 +89,7 @@ export function WishlistDrawer() {
                       {/* Image */}
                       <div className="w-20 h-24 bg-gray-50 overflow-hidden flex-shrink-0">
                         <img
-                          src={item.image}
+                          src={item.image || null}
                           alt={item.name}
                           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                           referrerPolicy="no-referrer"
