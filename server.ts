@@ -2458,11 +2458,8 @@ async function startServer() {
           });
         }
       } else {
-        console.warn("Supabase client is not initialized on backend.");
-        return res.status(503).json({
-          error: "Supabase storage is not configured",
-          details: "Backend client could not be initialized due to missing credentials (SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY)."
-        });
+        console.warn("Supabase client is not initialized on backend. Returning Base64 data URI directly...");
+        return res.json({ url: image });
       }
     } catch (error: any) {
       console.error("Upload endpoint error:", error);
