@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import { TopBar } from "./components/TopBar";
 import { Header } from "./components/Header";
 import { Footer } from "./components/Footer";
@@ -19,6 +19,9 @@ export default function Layout() {
   const clearFavorites = useFavoritesStore((state) => state.clearFavorites);
   const loadUserCart = useCartStore((state) => state.loadUserCart);
   const clearCart = useCartStore((state) => state.clearCart);
+  
+  const location = useLocation();
+  const isAdminRoute = location.pathname.startsWith("/admin") || location.pathname.startsWith("/supabase");
 
   useEffect(() => {
     initializeAuth();
@@ -56,13 +59,13 @@ export default function Layout() {
   return (
     <div className="flex flex-col min-h-screen">
       <SEOHead />
-      <TopBar />
-      <Header />
-      <main className="flex-grow pb-16 sm:pb-0">
+      {!isAdminRoute && <TopBar />}
+      {!isAdminRoute && <Header />}
+      <main className={`flex-grow ${isAdminRoute ? "" : "pb-16 sm:pb-0"}`}>
         <Outlet />
       </main>
-      <Footer />
-      <BottomNavigation />
+      {!isAdminRoute && <Footer />}
+      {!isAdminRoute && <BottomNavigation />}
       <WishlistDrawer />
       <AuthModal />
     </div>
