@@ -2234,7 +2234,7 @@ async function startServer() {
 
         res.json({
           success: true,
-          keyId: cleanEnvVar(process.env.VITE_RAZORPAY_KEY_ID) || "rzp_test_placeholder_key",
+          keyId: cleanEnvVar(process.env.VITE_RAZORPAY_KEY_ID || process.env.RAZORPAY_KEY_ID) || "rzp_test_placeholder_key",
           orderId: order.id,
           amount: order.amount,
           currency: order.currency,
