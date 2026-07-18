@@ -30,14 +30,28 @@ export function ContactForm() {
     e.preventDefault();
     setStatus("loading");
     
-    // Simulate API call
-    setTimeout(() => {
-      setStatus("success");
-      setFormData({ name: "", email: "", phone: "", inquiryType: "", message: "" });
+    try {
+      const response = await fetch("/api/inquiries", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      });
       
-      // Reset success message after 5 seconds
-      setTimeout(() => setStatus("idle"), 5000);
-    }, 1500);
+      if (response.ok) {
+        setStatus("success");
+        setFormData({ name: "", email: "", phone: "", inquiryType: "", message: "" });
+        
+        // Reset success message after 5 seconds
+        setTimeout(() => setStatus("idle"), 5000);
+      } else {
+        setStatus("error");
+      }
+    } catch (err) {
+      console.error("Failed to submit inquiry:", err);
+      setStatus("error");
+    }
   };
 
   return (
@@ -46,7 +60,7 @@ export function ContactForm() {
         <div className="flex flex-col lg:flex-row gap-0 border border-gray-200 overflow-hidden rounded-3xl shadow-xs">
           
           {/* Left Side: Image */}
-          <div className="lg:w-1/2 relative min-h-[400px] lg:min-h-auto">
+          <div className="lg:w-1/2 relative h-[200px] sm:h-[280px] lg:h-auto min-h-0 lg:min-h-[500px]">
              <img 
                src={(formSection as any).image || "https://images.unsplash.com/photo-1595532545115-4ba972e382bb?q=80&w=1500&auto=format&fit=crop"} 
                alt="Luxury Perfume" 
@@ -58,15 +72,15 @@ export function ContactForm() {
           </div>
 
           {/* Right Side: Form */}
-          <div className="lg:w-1/2 bg-white p-8 md:p-14">
-             <h3 className="font-serif text-3xl md:text-4xl text-gray-900 mb-3">{formSection.title}</h3>
-             <p className="text-gray-600 font-light tracking-wide mb-10 w-full border-b border-gold-primary pb-4">
+          <div className="lg:w-1/2 bg-white p-5 sm:p-8 md:p-14">
+             <h3 className="font-serif text-2xl sm:text-3xl md:text-4xl text-gray-900 mb-2 sm:mb-3">{formSection.title}</h3>
+             <p className="text-gray-600 font-light tracking-wide text-xs sm:text-sm mb-6 sm:mb-10 w-full border-b border-gold-primary pb-3 sm:pb-4">
                {formSection.subtitle}
              </p>
 
-             <form onSubmit={handleSubmit} className="space-y-6">
+             <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
                 <div>
-                   <label htmlFor="name" className="block text-xs font-semibold tracking-widest text-gray-500 uppercase mb-2">Full Name *</label>
+                   <label htmlFor="name" className="block text-[10px] sm:text-xs font-semibold tracking-widest text-gray-500 uppercase mb-1.5 sm:mb-2">Full Name *</label>
                    <input 
                      type="text" 
                      id="name" 
@@ -78,9 +92,9 @@ export function ContactForm() {
                    />
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                   <div>
-                    <label htmlFor="email" className="block text-xs font-semibold tracking-widest text-gray-500 uppercase mb-2">Email Address *</label>
+                    <label htmlFor="email" className="block text-[10px] sm:text-xs font-semibold tracking-widest text-gray-500 uppercase mb-1.5 sm:mb-2">Email Address *</label>
                     <input 
                       type="email" 
                       id="email" 
@@ -92,7 +106,7 @@ export function ContactForm() {
                     />
                   </div>
                   <div>
-                    <label htmlFor="phone" className="block text-xs font-semibold tracking-widest text-gray-500 uppercase mb-2">Phone Number *</label>
+                    <label htmlFor="phone" className="block text-[10px] sm:text-xs font-semibold tracking-widest text-gray-500 uppercase mb-1.5 sm:mb-2">Phone Number *</label>
                     <input 
                       type="tel" 
                       id="phone" 
@@ -106,7 +120,7 @@ export function ContactForm() {
                 </div>
 
                 <div className="relative">
-                  <label htmlFor="inquiryType" className="block text-xs font-semibold tracking-widest text-gray-500 uppercase mb-2">Inquiry Type *</label>
+                  <label htmlFor="inquiryType" className="block text-[10px] sm:text-xs font-semibold tracking-widest text-gray-500 uppercase mb-1.5 sm:mb-2">Inquiry Type *</label>
                   <select 
                     id="inquiryType"
                     name="inquiryType"
@@ -120,17 +134,17 @@ export function ContactForm() {
                       <option key={opt} value={opt}>{opt}</option>
                     ))}
                   </select>
-                  <div className="absolute right-4 top-10 pointer-events-none text-gray-500">
+                  <div className="absolute right-4 top-[38px] sm:top-10 pointer-events-none text-gray-500">
                     <ChevronDown className="w-5 h-5" />
                   </div>
                 </div>
 
                 <div>
-                   <label htmlFor="message" className="block text-xs font-semibold tracking-widest text-gray-500 uppercase mb-2">Message *</label>
+                   <label htmlFor="message" className="block text-[10px] sm:text-xs font-semibold tracking-widest text-gray-500 uppercase mb-1.5 sm:mb-2">Message *</label>
                    <textarea 
                      id="message" 
                      name="message"
-                     rows={5}
+                     rows={4}
                      required
                      value={formData.message}
                      onChange={handleChange}
@@ -141,7 +155,7 @@ export function ContactForm() {
                 <button 
                   type="submit" 
                   disabled={status === "loading"}
-                  className="w-full bg-gold-primary text-black font-semibold uppercase tracking-widest text-sm py-4 hover:bg-gold-accent transition-colors disabled:opacity-70 flex justify-center items-center rounded-lg"
+                  className="w-full bg-gold-primary text-black font-semibold uppercase tracking-widest text-xs sm:text-sm py-3.5 sm:py-4 hover:bg-gold-accent transition-colors disabled:opacity-70 flex justify-center items-center rounded-lg cursor-pointer"
                 >
                   {status === "loading" ? "Sending..." : "Send Inquiry"}
                 </button>

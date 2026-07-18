@@ -115,4 +115,15 @@ export const contactPageImages = pgTable("contact_page_images", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const inquiries = pgTable("inquiries", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  email: varchar("email", { length: 255 }).notNull(),
+  phone: varchar("phone", { length: 50 }).notNull(),
+  inquiryType: varchar("inquiry_type", { length: 255 }).notNull(),
+  message: text("message").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+
 

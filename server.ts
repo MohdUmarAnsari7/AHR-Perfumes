@@ -5,7 +5,7 @@ import crypto from "crypto";
 import { createServer as createViteServer } from "vite";
 import { createClient } from "@supabase/supabase-js";
 import { db, isDbConfigured, pool } from "./src/db/index";
-import { products, cartItems, businessInfo, categories, testimonials, faqs, galleryImages, users } from "./src/db/schema";
+import { products, cartItems, businessInfo, categories, testimonials, faqs, galleryImages, users, inquiries } from "./src/db/schema";
 import { 
   products as staticProducts,
   businessInfo as staticBusinessInfo,
@@ -402,6 +402,18 @@ async function setupAndSeedDatabase() {
     );
   `);
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS inquiries (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      email VARCHAR(255) NOT NULL,
+      phone VARCHAR(50) NOT NULL,
+      inquiry_type VARCHAR(255) NOT NULL,
+      message TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+  `);
+
   // Migrate existing column types to TEXT to support longer Base64 data URIs
   try {
     console.log("Migrating column types to TEXT for larger payload support...");
@@ -785,6 +797,7 @@ async function startServer() {
   let inMemoryUsers: any[] = [];
   let inMemorySessions: Record<string, any> = {};
   let inMemoryOrders: any[] = [];
+  let activeInquiries: any[] = [];
   let activeWebsiteContent: Record<string, any> = {
     homepage: {
       heroHeading: "Premium Attars Crafted With Tradition",
@@ -945,6 +958,10 @@ async function startServer() {
             inMemoryOrders.length = 0;
             inMemoryOrders.push(...parsed.inMemoryOrders);
           }
+          if (parsed.activeInquiries) {
+            activeInquiries.length = 0;
+            activeInquiries.push(...parsed.activeInquiries);
+          }
           console.log("[Fallback Store] Loaded persistent fallback data from disk cache.");
         } catch (parseErr: any) {
           console.error("[Fallback Store] Corrupted fallback data detected. Resetting store to avoid crash and log spam. Error:", parseErr.message);
@@ -975,7 +992,8 @@ async function startServer() {
         activeWebsiteContent,
         inMemoryUsers,
         inMemorySessions,
-        inMemoryOrders
+        inMemoryOrders,
+        activeInquiries
       };
       const jsonString = JSON.stringify(data, null, 2);
       fs.writeFileSync(FALLBACK_STORE_PATH, jsonString, "utf8");
@@ -3193,6 +3211,123 @@ async function startServer() {
     } catch (error: any) {
       console.error("Failed to delete gallery image:", error);
       res.status(500).json({ error: "Failed to delete gallery image", details: error.message });
+    }
+  });
+
+  // --- INQUIRIES APIs ---
+  app.get("/api/inquiries", async (req, res) => {
+    try {
+      if (isDbConfigured && isDbHealthy) {
+        try {
+          const result = await pool.query("SELECT * FROM inquiries ORDER BY id DESC");
+          const dbInquiries = result.rows.map(r => ({
+            id: r.id,
+            name: r.name,
+            email: r.email,
+            phone: r.phone,
+            inquiryType: r.inquiry_type || r.inquiryType || "General Inquiry",
+            message: r.message,
+            createdAt: r.created_at || r.createdAt
+          }));
+          // Sync to memory
+          activeInquiries = dbInquiries;
+          return res.json(dbInquiries);
+        } catch (dbErr: any) {
+          console.error("Failed to query inquiries from DB, returning fallback:", dbErr);
+        }
+      }
+      res.json(activeInquiries);
+    } catch (error: any) {
+      console.error("Failed to fetch inquiries:", error);
+      res.status(500).json({ error: "Failed to fetch inquiries", details: error.message });
+    }
+  });
+
+  app.post("/api/inquiries", async (req, res) => {
+    try {
+      const { name, email, phone, inquiryType, message } = req.body;
+      if (!name || !email || !phone || !message) {
+        return res.status(400).json({ error: "Missing required fields." });
+      }
+
+      const newInquiry = {
+        id: "fallback_" + Date.now() + "_" + Math.random().toString(36).substring(2, 7),
+        name,
+        email,
+        phone,
+        inquiryType: inquiryType || "General Inquiry",
+        message,
+        createdAt: new Date().toISOString()
+      };
+
+      if (isDbConfigured && isDbHealthy) {
+        try {
+          const result = await pool.query(
+            `INSERT INTO inquiries (name, email, phone, inquiry_type, message)
+             VALUES ($1, $2, $3, $4, $5)
+             RETURNING *`,
+            [name, email, phone, inquiryType || "General Inquiry", message]
+          );
+          if (result.rows.length > 0) {
+            const row = result.rows[0];
+            const savedInquiry = {
+              id: row.id,
+              name: row.name,
+              email: row.email,
+              phone: row.phone,
+              inquiryType: row.inquiry_type || row.inquiryType || "General Inquiry",
+              message: row.message,
+              createdAt: row.created_at || row.createdAt
+            };
+            // Prepend to memory
+            activeInquiries.unshift(savedInquiry);
+            await saveFallbackData();
+            return res.status(201).json({ success: true, inquiry: savedInquiry });
+          }
+        } catch (dbErr: any) {
+          console.error("Failed to save inquiry to DB, using fallback:", dbErr);
+        }
+      }
+
+      // Memory fallback path
+      activeInquiries.unshift(newInquiry);
+      await saveFallbackData();
+      res.status(201).json({ success: true, inquiry: newInquiry });
+    } catch (error: any) {
+      console.error("Failed to create inquiry:", error);
+      res.status(500).json({ error: "Failed to create inquiry", details: error.message });
+    }
+  });
+
+  app.delete("/api/inquiries/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      let deletedFromDb = false;
+
+      if (isDbConfigured && isDbHealthy && !String(id).startsWith("fallback_")) {
+        const dbId = parseInt(id, 10);
+        if (!isNaN(dbId)) {
+          try {
+            await pool.query("DELETE FROM inquiries WHERE id = $1", [dbId]);
+            deletedFromDb = true;
+          } catch (dbErr: any) {
+            console.error("Failed to delete inquiry from DB, falling back to memory:", dbErr.message);
+          }
+        }
+      }
+
+      const initialLen = activeInquiries.length;
+      activeInquiries = activeInquiries.filter(item => String(item.id) !== String(id));
+
+      if (deletedFromDb || activeInquiries.length < initialLen) {
+        await saveFallbackData();
+        return res.json({ success: true, message: "Inquiry deleted successfully." });
+      }
+
+      res.status(404).json({ error: "Inquiry not found to delete." });
+    } catch (error: any) {
+      console.error("Failed to delete inquiry:", error);
+      res.status(500).json({ error: "Failed to delete inquiry", details: error.message });
     }
   });
 

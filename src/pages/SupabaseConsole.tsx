@@ -32,6 +32,8 @@ import {
   EyeOff,
   LogOut,
   Upload,
+  Mail,
+  MessageSquare,
   Link as LinkIcon,
   Check,
   AlertCircle,
@@ -71,7 +73,7 @@ export default function SupabaseConsole() {
   const [loginLoading, setLoginLoading] = useState(false);
 
   // Layout Tab selection
-  const [activeTab, setActiveTab] = useState<"home" | "shop" | "categories" | "about" | "gallery" | "contact">("home");
+  const [activeTab, setActiveTab] = useState<"home" | "shop" | "categories" | "about" | "gallery" | "contact" | "inquiries">("home");
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Shared status states
@@ -156,6 +158,8 @@ export default function SupabaseConsole() {
   // Product Filters/Pagination
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [inquirySearch, setInquirySearch] = useState("");
+  const [inquiryTypeFilter, setInquiryTypeFilter] = useState("all");
   const [visibilityFilter, setVisibilityFilter] = useState("all");
   const [sortField, setSortField] = useState("name-asc");
 
@@ -270,6 +274,42 @@ export default function SupabaseConsole() {
     }
   };
 
+  const [inquiries, setInquiries] = useState<any[]>([]);
+  const [inquiriesLoading, setInquiriesLoading] = useState(false);
+
+  const loadInquiries = async () => {
+    setInquiriesLoading(true);
+    try {
+      const response = await fetch("/api/inquiries");
+      if (response.ok) {
+        const data = await response.json();
+        setInquiries(data);
+      }
+    } catch (err) {
+      console.error("Failed to load inquiries:", err);
+    } finally {
+      setInquiriesLoading(false);
+    }
+  };
+
+  const handleDeleteInquiry = async (id: any) => {
+    if (!window.confirm("Are you sure you want to delete this inquiry?")) return;
+    try {
+      const response = await fetch(`/api/inquiries/${id}`, {
+        method: "DELETE",
+      });
+      if (response.ok) {
+        showToast("Inquiry deleted successfully", "success");
+        loadInquiries();
+      } else {
+        showToast("Failed to delete inquiry", "error");
+      }
+    } catch (err) {
+      console.error("Failed to delete inquiry:", err);
+      showToast("Failed to delete inquiry", "error");
+    }
+  };
+
   useEffect(() => {
     if (isLoggedIn) {
       loadDbStatus();
@@ -277,6 +317,7 @@ export default function SupabaseConsole() {
       loadCategories();
       loadMedia();
       loadGallery();
+      loadInquiries();
       websiteStore.fetchContent();
     }
   }, [isLoggedIn]);
@@ -1196,6 +1237,7 @@ export default function SupabaseConsole() {
               { id: "about", label: "About Brand", icon: Info },
               { id: "gallery", label: "Gallery / Story", icon: ImageIcon },
               { id: "contact", label: "Contact Details", icon: Compass },
+              { id: "inquiries", label: "Inquiries", icon: Mail },
             ].map((tab) => {
               const isSelected = activeTab === tab.id;
               const IconComp = tab.icon;
@@ -2326,6 +2368,191 @@ export default function SupabaseConsole() {
                         </form>
                       </div>
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 6: INQUIRIES VIEW */}
+              {activeTab === "inquiries" && (
+                <div className="space-y-8 animate-fade-in">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div>
+                      <h2 className="text-xl sm:text-2xl font-serif text-[#111111] uppercase tracking-wider font-semibold">
+                        Submitted Inquiries
+                      </h2>
+                      <p className="text-xs text-neutral-500 mt-1 uppercase tracking-wider">
+                        View and manage leads, wholesale inquiries, and customer messages
+                      </p>
+                    </div>
+                    <button
+                      onClick={loadInquiries}
+                      disabled={inquiriesLoading}
+                      className="flex items-center space-x-2 bg-neutral-100 hover:bg-neutral-200 text-[#111111] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-colors disabled:opacity-50 cursor-pointer w-fit self-end"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${inquiriesLoading ? "animate-spin" : ""}`} />
+                      <span>{inquiriesLoading ? "Refreshing..." : "Refresh"}</span>
+                    </button>
+                  </div>
+
+                  {/* Summary Cards */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                    <div className="bg-[#FAF9F6] border border-[#F0EAE1] rounded-2xl p-5 shadow-xs">
+                      <span className="text-[10px] uppercase tracking-widest text-neutral-400 font-bold">Total Inquiries</span>
+                      <h3 className="text-2xl sm:text-3xl font-serif text-[#111111] font-semibold mt-1">
+                        {inquiries.length}
+                      </h3>
+                    </div>
+                    <div className="bg-[#FAF9F6] border border-[#F0EAE1] rounded-2xl p-5 shadow-xs">
+                      <span className="text-[10px] uppercase tracking-widest text-emerald-600 font-bold">Wholesale Requests</span>
+                      <h3 className="text-2xl sm:text-3xl font-serif text-emerald-700 font-semibold mt-1">
+                        {inquiries.filter(i => String(i.inquiryType || i.inquiry_type).toLowerCase().includes("wholesale")).length}
+                      </h3>
+                    </div>
+                    <div className="bg-[#FAF9F6] border border-[#F0EAE1] rounded-2xl p-5 shadow-xs">
+                      <span className="text-[10px] uppercase tracking-widest text-gold-accent font-bold">Custom & Gifting</span>
+                      <h3 className="text-2xl sm:text-3xl font-serif text-gold-accent font-semibold mt-1">
+                        {inquiries.filter(i => String(i.inquiryType || i.inquiry_type).toLowerCase().includes("custom") || String(i.inquiryType || i.inquiry_type).toLowerCase().includes("gift")).length}
+                      </h3>
+                    </div>
+                  </div>
+
+                  {/* Filter & Search Bar */}
+                  <div className="bg-white border border-[#F0EAE1] rounded-2xl p-4 sm:p-6 shadow-xs space-y-4">
+                    <div className="flex flex-col md:flex-row gap-4">
+                      <div className="flex-1 relative">
+                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+                        <input
+                          type="text"
+                          placeholder="Search inquiries by name, email, or keywords..."
+                          value={inquirySearch}
+                          onChange={(e) => setInquirySearch(e.target.value)}
+                          className="w-full bg-[#FAF9F6] border border-neutral-200 text-xs rounded-xl pl-10 pr-4 py-3"
+                        />
+                      </div>
+                      <div className="w-full md:w-64">
+                        <select
+                          value={inquiryTypeFilter}
+                          onChange={(e) => setInquiryTypeFilter(e.target.value)}
+                          className="w-full bg-[#FAF9F6] border border-neutral-200 text-xs rounded-xl px-4 py-3 cursor-pointer"
+                        >
+                          <option value="all">All Inquiry Types</option>
+                          <option value="general">General Inquiry</option>
+                          <option value="wholesale">Wholesale & Bulk</option>
+                          <option value="gifting">Custom Gifting</option>
+                          <option value="other">Other / Support</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Inquiries List */}
+                    {inquiriesLoading ? (
+                      <div className="py-20 text-center text-xs text-neutral-500 uppercase tracking-widest animate-pulse">
+                        Retrieving inquiries and client messages...
+                      </div>
+                    ) : (
+                      (() => {
+                        const filtered = inquiries.filter(i => {
+                          const matchesSearch = 
+                            String(i.name).toLowerCase().includes(inquirySearch.toLowerCase()) ||
+                            String(i.email).toLowerCase().includes(inquirySearch.toLowerCase()) ||
+                            String(i.phone).toLowerCase().includes(inquirySearch.toLowerCase()) ||
+                            String(i.message).toLowerCase().includes(inquirySearch.toLowerCase());
+                          
+                          const typeVal = String(i.inquiryType || i.inquiry_type || "").toLowerCase();
+                          
+                          if (inquiryTypeFilter === "all") return matchesSearch;
+                          if (inquiryTypeFilter === "wholesale") {
+                            return matchesSearch && typeVal.includes("wholesale");
+                          }
+                          if (inquiryTypeFilter === "gifting") {
+                            return matchesSearch && (typeVal.includes("custom") || typeVal.includes("gift"));
+                          }
+                          if (inquiryTypeFilter === "general") {
+                            return matchesSearch && (typeVal.includes("general") || typeVal.trim() === "");
+                          }
+                          // other
+                          return matchesSearch && 
+                            !typeVal.includes("wholesale") &&
+                            !typeVal.includes("custom") &&
+                            !typeVal.includes("gift") &&
+                            !typeVal.includes("general");
+                        });
+
+                        if (filtered.length === 0) {
+                          return (
+                            <div className="py-16 text-center border-2 border-dashed border-neutral-200 rounded-2xl">
+                              <MessageSquare className="w-8 h-8 text-neutral-300 mx-auto mb-3" />
+                              <h4 className="text-sm font-semibold text-neutral-800">No Inquiries Found</h4>
+                              <p className="text-xs text-neutral-500 mt-1 max-w-md mx-auto">
+                                {inquiries.length === 0 
+                                  ? "No client inquiries have been submitted yet. Try submitting the contact form to see it appear here!"
+                                  : "No inquiries match your current search queries or type filters."}
+                              </p>
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div className="space-y-4 pt-2">
+                            {filtered.map((item) => (
+                              <div
+                                key={item.id}
+                                className="border border-[#F0EAE1] hover:border-gold-accent rounded-xl p-5 transition-all bg-neutral-50/50 hover:bg-white"
+                              >
+                                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-3 pb-3 border-b border-[#F7F4EE]">
+                                  <div>
+                                    <div className="flex items-center space-x-2">
+                                      <h4 className="text-sm font-semibold text-neutral-900 font-serif">
+                                        {item.name}
+                                      </h4>
+                                      <span className={`px-2.5 py-0.5 rounded-full text-[9px] uppercase tracking-wider font-extrabold ${
+                                        String(item.inquiryType || item.inquiry_type).toLowerCase().includes("wholesale")
+                                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                          : String(item.inquiryType || item.inquiry_type).toLowerCase().includes("custom") || String(item.inquiryType || item.inquiry_type).toLowerCase().includes("gift")
+                                          ? "bg-gold-primary/10 text-gold-accent border border-gold-primary/20"
+                                          : "bg-neutral-100 text-neutral-600 border border-neutral-200"
+                                      }`}>
+                                        {item.inquiryType || item.inquiry_type || "General Inquiry"}
+                                      </span>
+                                    </div>
+                                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-xs text-neutral-500">
+                                      <a href={`mailto:${item.email}`} className="hover:text-gold-accent flex items-center space-x-1.5 transition-colors">
+                                        <Mail className="w-3.5 h-3.5 text-neutral-400" />
+                                        <span>{item.email}</span>
+                                      </a>
+                                      <span>•</span>
+                                      <a href={`tel:${item.phone}`} className="hover:text-gold-accent flex items-center space-x-1.5 transition-colors">
+                                        <Compass className="w-3.5 h-3.5 text-neutral-400 rotate-45" />
+                                        <span>{item.phone}</span>
+                                      </a>
+                                    </div>
+                                  </div>
+
+                                  <div className="flex items-center space-x-3.5 sm:self-start">
+                                    <span className="text-[10px] text-neutral-400 font-mono">
+                                      {new Date(item.createdAt || item.created_at || Date.now()).toLocaleString()}
+                                    </span>
+                                    <button
+                                      onClick={() => handleDeleteInquiry(item.id)}
+                                      className="text-neutral-400 hover:text-red-600 transition-colors p-1 rounded-lg hover:bg-red-50 cursor-pointer"
+                                      title="Delete inquiry"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                </div>
+
+                                <div className="bg-[#FAF9F6] border-l-2 border-gold-primary rounded-r-lg p-3.5">
+                                  <p className="text-xs text-neutral-700 whitespace-pre-wrap leading-relaxed font-sans">
+                                    {item.message}
+                                  </p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      })()
+                    )}
                   </div>
                 </div>
               )}
