@@ -3571,6 +3571,66 @@ async function startServer() {
     }
   });
 
+  // --- ADMIN APIs FOR ORDERS AND USERS ---
+  app.get("/api/admin/orders", async (req, res) => {
+    try {
+      if (isDbConfigured && isDbHealthy) {
+        const result = await pool.query("SELECT * FROM orders ORDER BY id DESC");
+        return res.json({ success: true, orders: result.rows });
+      } else {
+        return res.json({ success: true, orders: [] });
+      }
+    } catch (err: any) {
+      console.error("Admin: failed to fetch orders:", err);
+      res.status(500).json({ error: "Failed to fetch orders", details: err.message });
+    }
+  });
+
+  app.put("/api/admin/orders/:id/status", async (req, res) => {
+    try {
+      const orderId = req.params.id;
+      const { status } = req.body;
+      if (isDbConfigured && isDbHealthy) {
+        await pool.query("UPDATE orders SET status = $1 WHERE id = $2", [status, orderId]);
+        return res.json({ success: true, message: `Order status updated to ${status}` });
+      } else {
+        return res.status(400).json({ error: "Database not connected" });
+      }
+    } catch (err: any) {
+      console.error("Admin: failed to update order status:", err);
+      res.status(500).json({ error: "Failed to update order status", details: err.message });
+    }
+  });
+
+  app.delete("/api/admin/orders/:id", async (req, res) => {
+    try {
+      const orderId = req.params.id;
+      if (isDbConfigured && isDbHealthy) {
+        await pool.query("DELETE FROM orders WHERE id = $1", [orderId]);
+        return res.json({ success: true, message: "Order deleted successfully" });
+      } else {
+        return res.status(400).json({ error: "Database not connected" });
+      }
+    } catch (err: any) {
+      console.error("Admin: failed to delete order:", err);
+      res.status(500).json({ error: "Failed to delete order", details: err.message });
+    }
+  });
+
+  app.get("/api/admin/users", async (req, res) => {
+    try {
+      if (isDbConfigured && isDbHealthy) {
+        const result = await pool.query("SELECT id, email, mobile, name, role, created_at, shipping_address, city, state, zip, country FROM users ORDER BY id DESC");
+        return res.json({ success: true, users: result.rows });
+      } else {
+        return res.json({ success: true, users: [] });
+      }
+    } catch (err: any) {
+      console.error("Admin: failed to fetch users:", err);
+      res.status(500).json({ error: "Failed to fetch users", details: err.message });
+    }
+  });
+
   // --- INQUIRIES APIs ---
   app.get("/api/inquiries", async (req, res) => {
     try {
