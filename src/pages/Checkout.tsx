@@ -69,6 +69,21 @@ export default function Checkout() {
     }
   }, [isLoggedIn, user]);
 
+  const loadRazorpayScript = (): Promise<boolean> => {
+    return new Promise((resolve) => {
+      if ((window as any).Razorpay) {
+        resolve(true);
+        return;
+      }
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.async = true;
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -102,26 +117,132 @@ export default function Checkout() {
         guestId: !isLoggedIn ? `guest_${Math.random().toString(36).substring(2, 8)}` : undefined
       };
 
-      const res = await fetch("/api/user/orders", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(isLoggedIn && { "x-session-token": localStorage.getItem("ahr_session_token") || "" })
-        },
-        body: JSON.stringify(orderPayload)
-      });
+      if (paymentMethod === "COD") {
+        const res = await fetch("/api/user/orders", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(isLoggedIn && { "x-session-token": localStorage.getItem("ahr_session_token") || "" })
+          },
+          body: JSON.stringify(orderPayload)
+        });
 
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to place your order.");
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || "Failed to place your order.");
+        }
+
+        setPlacedOrder(data.order);
+        setOrderSuccess(true);
+        clearCart();
+        setIsSubmitting(false);
+      } else {
+        // Enforce login for online payments because Razorpay integration uses authenticated user endpoints
+        if (!isLoggedIn) {
+          setError("Online payment methods require an account. Please sign in or sign up first using the link at the top.");
+          openAuthModal("login");
+          setIsSubmitting(false);
+          return;
+        }
+
+        // 1. Load Razorpay script dynamically
+        const scriptLoaded = await loadRazorpayScript();
+        if (!scriptLoaded) {
+          throw new Error("Unable to load Razorpay checkout interface. Please check your network connection.");
+        }
+
+        // 2. Request new order instance from backend
+        const createOrderRes = await fetch("/api/razorpay/create-order", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-session-token": localStorage.getItem("ahr_session_token") || ""
+          },
+          body: JSON.stringify({
+            items: orderPayload.items,
+            shipping_address: address,
+            city,
+            state: stateName,
+            zip,
+            country
+          })
+        });
+
+        const orderData = await createOrderRes.json();
+        if (!createOrderRes.ok) {
+          throw new Error(orderData.error || "Failed to initialize payment gateway checkout session.");
+        }
+
+        // 3. Configure and trigger Razorpay Checkout Overlay
+        const options = {
+          key: orderData.keyId,
+          amount: orderData.amount,
+          currency: orderData.currency,
+          name: info.name || "A.H.R Perfumes",
+          description: "Secure Checkout Payment",
+          image: info.logo || "https://images.unsplash.com/photo-1594035910387-fea47794261f?q=80&w=1000",
+          order_id: orderData.orderId,
+          handler: async function (response: any) {
+            try {
+              setIsSubmitting(true);
+              const verifyRes = await fetch("/api/razorpay/verify-payment", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "x-session-token": localStorage.getItem("ahr_session_token") || ""
+                },
+                body: JSON.stringify({
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_signature: response.razorpay_signature,
+                  items: orderPayload.items,
+                  total_amount: Math.round(orderData.finalAmount),
+                  shipping_address: address,
+                  city,
+                  state: stateName,
+                  zip,
+                  country,
+                  payment_method: paymentMethod
+                })
+              });
+
+              const verifyData = await verifyRes.json();
+              if (!verifyRes.ok) {
+                throw new Error(verifyData.error || "Failed to verify transaction with payment gateway.");
+              }
+
+              setPlacedOrder(verifyData.order);
+              setOrderSuccess(true);
+              clearCart();
+            } catch (err: any) {
+              setError(err.message || "An error occurred during payment verification.");
+            } finally {
+              setIsSubmitting(false);
+            }
+          },
+          prefill: {
+            name: name,
+            email: email,
+            contact: mobile
+          },
+          notes: {
+            address: address
+          },
+          theme: {
+            color: "#C5A059"
+          },
+          modal: {
+            ondismiss: function () {
+              setIsSubmitting(false);
+            }
+          }
+        };
+
+        const rzp = new (window as any).Razorpay(options);
+        rzp.open();
       }
-
-      setPlacedOrder(data.order);
-      setOrderSuccess(true);
-      clearCart();
     } catch (err: any) {
       setError(err.message || "An unexpected error occurred during order creation.");
-    } finally {
       setIsSubmitting(false);
     }
   };
