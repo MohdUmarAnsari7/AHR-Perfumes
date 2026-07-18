@@ -31,6 +31,7 @@ export const cartItems = pgTable("cart_items", {
   userId: varchar("user_id", { length: 255 }).notNull(), // Assuming a simple string-based user session/ID for now
   productId: integer("product_id").references(() => products.id).notNull(),
   quantity: integer("quantity").notNull().default(1),
+  size: varchar("size", { length: 50 }),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

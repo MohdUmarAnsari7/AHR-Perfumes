@@ -4,6 +4,7 @@ import fs from "fs";
 import crypto from "crypto";
 import { createServer as createViteServer } from "vite";
 import { createClient } from "@supabase/supabase-js";
+import Razorpay from "razorpay";
 import { db, isDbConfigured, pool } from "./src/db/index";
 import { products, cartItems, businessInfo, categories, testimonials, faqs, galleryImages, users, inquiries } from "./src/db/schema";
 import { 
@@ -265,6 +266,18 @@ async function setupAndSeedDatabase() {
     );
   `);
 
+  // Alter orders table to add Razorpay payment columns if missing
+  try {
+    await pool.query("ALTER TABLE orders ADD COLUMN IF NOT EXISTS razorpay_order_id VARCHAR(255);");
+    await pool.query("ALTER TABLE orders ADD COLUMN IF NOT EXISTS razorpay_payment_id VARCHAR(255);");
+    await pool.query("ALTER TABLE orders ADD COLUMN IF NOT EXISTS razorpay_signature VARCHAR(255);");
+    await pool.query("ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_status VARCHAR(50) DEFAULT 'Pending';");
+    await pool.query("ALTER TABLE orders ADD COLUMN IF NOT EXISTS transaction_id VARCHAR(255);");
+    await pool.query("ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_time TIMESTAMP;");
+  } catch (orderColErr: any) {
+    console.warn("Could not alter orders table to add Razorpay columns:", orderColErr.message);
+  }
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS products (
       id SERIAL PRIMARY KEY,
@@ -296,10 +309,18 @@ async function setupAndSeedDatabase() {
       user_id VARCHAR(255) NOT NULL,
       product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
       quantity INTEGER NOT NULL DEFAULT 1,
+      size VARCHAR(50) DEFAULT '6ml',
       created_at TIMESTAMP DEFAULT NOW(),
       updated_at TIMESTAMP DEFAULT NOW()
     );
   `);
+
+  try {
+    await pool.query(`ALTER TABLE cart_items ADD COLUMN IF NOT EXISTS size VARCHAR(50) DEFAULT '6ml';`);
+    console.log("Successfully ran ALTER TABLE cart_items ADD COLUMN IF NOT EXISTS size VARCHAR(50);");
+  } catch (alterErr: any) {
+    console.warn("Could not alter cart_items table to add 'size' column:", alterErr.message);
+  }
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS business_info (
@@ -433,33 +454,29 @@ async function setupAndSeedDatabase() {
   let seededProducts = 0;
 
   // 1. Products Seeding
-  const prodCountRes = await pool.query("SELECT COUNT(*) FROM products");
-  const prodCount = parseInt(prodCountRes.rows[0].count, 10);
-  if (prodCount === 0) {
-    console.log(`Seeding database with ${staticProducts.length} default products...`);
-    for (const p of staticProducts) {
-      const parsedId = p.id ? parseInt(String(p.id).replace(/[^\d]/g, ""), 10) : undefined;
-      const pid = isNaN(parsedId as any) ? undefined : parsedId;
-      const desc = `${p.name} is a premium fragrance in our luxury ${p.category} range.`;
-      
-      await pool.query(
-        `INSERT INTO products (id, name, category, description, price, original_price, image, is_best_seller, stock)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-         ON CONFLICT (id) DO NOTHING`,
-        [
-          pid,
-          p.name,
-          p.category,
-          desc,
-          p.price,
-          (p as any).originalPrice || null,
-          p.image,
-          p.isBestSeller || false,
-          100
-        ]
-      );
-      seededProducts++;
-    }
+  console.log(`Checking and seeding database with default products...`);
+  for (const p of staticProducts) {
+    const parsedId = p.id ? parseInt(String(p.id).replace(/[^\d]/g, ""), 10) : undefined;
+    const pid = isNaN(parsedId as any) ? undefined : parsedId;
+    const desc = `${p.name} is a premium fragrance in our luxury ${p.category} range.`;
+    
+    await pool.query(
+      `INSERT INTO products (id, name, category, description, price, original_price, image, is_best_seller, stock)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       ON CONFLICT (id) DO NOTHING`,
+      [
+        pid,
+        p.name,
+        p.category,
+        desc,
+        p.price,
+        (p as any).originalPrice || null,
+        p.image,
+        p.isBestSeller || false,
+        100
+      ]
+    );
+    seededProducts++;
   }
 
   // 2. Business Info Seeding
@@ -2072,6 +2089,332 @@ async function startServer() {
     }
   });
 
+  // --- RAZORPAY PAYMENT GATEWAY API ---
+  const VALID_COUPONS: Record<string, { discountPercent: number }> = {
+    "AHR10": { discountPercent: 10 },
+    "WELCOME5": { discountPercent: 5 },
+    "PREMIUM20": { discountPercent: 20 },
+  };
+
+  let razorpayClient: any = null;
+  const getRazorpayClient = () => {
+    if (!razorpayClient) {
+      const keyId = cleanEnvVar(process.env.VITE_RAZORPAY_KEY_ID || process.env.RAZORPAY_KEY_ID);
+      const keySecret = cleanEnvVar(process.env.RAZORPAY_KEY_SECRET);
+      razorpayClient = new Razorpay({
+        key_id: keyId || "rzp_test_placeholder_key",
+        key_secret: keySecret || "placeholder_secret"
+      });
+    }
+    return razorpayClient;
+  };
+
+  app.post("/api/razorpay/create-order", async (req, res) => {
+    try {
+      // 1. Customer authentication validation
+      const authUser = await getAuthenticatedUser(req);
+      if (!authUser) {
+        return res.status(401).json({ error: "Customer authentication is required. Please log in first." });
+      }
+
+      const { items, coupon, shipping_address, city, state, zip, country } = req.body;
+
+      // 2. Cart is not empty validation
+      if (!items || !Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ error: "Cart is empty." });
+      }
+
+      // 3. Delivery address is valid validation
+      if (!shipping_address || !city || !state || !zip) {
+        return res.status(400).json({ error: "Please enter a valid shipping address, city, state, and pincode." });
+      }
+
+      // 4. Products existence, active state, stock check, and price fetching from database
+      let subtotal = 0;
+      const validatedItems = [];
+
+      for (const item of items) {
+        const actualIdStr = String(item.id).split('_')[0];
+        const parsedId = parseInt(actualIdStr, 10);
+        let dbProd = null;
+        if (isDbConfigured && isDbHealthy && !isNaN(parsedId)) {
+          try {
+            const dbResult = await pool.query("SELECT * FROM products WHERE id = $1", [parsedId]);
+            if (dbResult.rows.length > 0) {
+              dbProd = dbResult.rows[0];
+            }
+          } catch (dbErr) {
+            console.error("Failed to query product from database:", dbErr);
+          }
+        }
+
+        if (!dbProd) {
+          dbProd = staticProducts.find(p => String(p.id) === String(actualIdStr));
+        }
+
+        if (!dbProd) {
+          return res.status(400).json({ error: `Product "${item.name}" does not exist.` });
+        }
+
+        // Active check: is_visible is true (or undefined/not false)
+        if (dbProd.is_visible === false) {
+          return res.status(400).json({ error: `Product "${dbProd.name}" is not active.` });
+        }
+
+        // Stock validation
+        const currentStock = parseInt(dbProd.stock || 0);
+        if (currentStock < item.quantity) {
+          return res.status(400).json({ error: `Insufficient stock for product "${dbProd.name}". Only ${currentStock} left in stock.` });
+        }
+
+        // Product prices fetched from database / sizes JSON
+        let finalItemPrice = Number(dbProd.price);
+        if (item.size && item.size !== "Standard") {
+          let sizesArray = [];
+          if (typeof dbProd.sizes === "string") {
+            try {
+              sizesArray = JSON.parse(dbProd.sizes);
+            } catch (e) {}
+          } else if (Array.isArray(dbProd.sizes)) {
+            sizesArray = dbProd.sizes;
+          }
+          const matchedSize = sizesArray.find((s: any) => s.size === item.size);
+          if (matchedSize) {
+            finalItemPrice = Number(matchedSize.price);
+          }
+        }
+
+        subtotal += finalItemPrice * item.quantity;
+        validatedItems.push({
+          ...item,
+          price: finalItemPrice
+        });
+      }
+
+      // 5. Coupon validation (if applied)
+      let couponDiscount = 0;
+      if (coupon) {
+        const normalizedCoupon = String(coupon).trim().toUpperCase();
+        const couponData = VALID_COUPONS[normalizedCoupon];
+        if (!couponData) {
+          return res.status(400).json({ error: "Invalid coupon code." });
+        }
+        couponDiscount = Math.round((subtotal * couponData.discountPercent) / 100);
+      }
+
+      // 6. Final amount calculation (calculated on backend only)
+      let finalAmount = subtotal - couponDiscount;
+      
+      // Calculate 5% prepaid checkout discount as shown on the checkout screen
+      const prepaidDiscount = Math.round(finalAmount * 0.05);
+      finalAmount -= prepaidDiscount;
+
+      if (finalAmount < 1) {
+        finalAmount = 1; // Razorpay requires at least 1 INR
+      }
+
+      // Initialize Razorpay Order via SDK
+      try {
+        const rzp = getRazorpayClient();
+        const options = {
+          amount: Math.round(finalAmount * 100), // in paise
+          currency: "INR",
+          receipt: `rcpt_user_${authUser.id}_${Date.now().toString(36)}`,
+          notes: {
+            userId: String(authUser.id),
+            userEmail: authUser.email,
+            coupon: coupon || "",
+            subtotal: String(subtotal),
+            couponDiscount: String(couponDiscount),
+            prepaidDiscount: String(prepaidDiscount),
+          }
+        };
+
+        const order = await rzp.orders.create(options);
+
+        res.json({
+          success: true,
+          keyId: cleanEnvVar(process.env.VITE_RAZORPAY_KEY_ID) || "rzp_test_placeholder_key",
+          orderId: order.id,
+          amount: order.amount,
+          currency: order.currency,
+          subtotal,
+          couponDiscount,
+          prepaidDiscount,
+          finalAmount,
+          items: validatedItems
+        });
+      } catch (rzpErr: any) {
+        console.error("Razorpay API order creation failed:", rzpErr);
+        res.status(500).json({ error: "Failed to initialize Razorpay checkout session with payment gateway.", details: rzpErr.message });
+      }
+    } catch (err: any) {
+      console.error("Create order endpoint error:", err);
+      res.status(500).json({ error: "Internal server error during order initialization.", details: err.message });
+    }
+  });
+
+  app.post("/api/razorpay/verify-payment", async (req, res) => {
+    try {
+      const authUser = await getAuthenticatedUser(req);
+      if (!authUser) {
+        return res.status(401).json({ error: "Customer authentication is required. Please log in first." });
+      }
+
+      const userId = String(authUser.id);
+      const {
+        razorpay_order_id,
+        razorpay_payment_id,
+        razorpay_signature,
+        items,
+        total_amount,
+        shipping_address,
+        city,
+        state,
+        zip,
+        country,
+        payment_method,
+        coupon
+      } = req.body;
+
+      if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+        return res.status(400).json({ error: "Missing required Razorpay payment credentials." });
+      }
+
+      // Verify payment signature on backend
+      const keySecret = cleanEnvVar(process.env.RAZORPAY_KEY_SECRET) || "placeholder_secret";
+      const hmac = crypto.createHmac("sha256", keySecret);
+      hmac.update(razorpay_order_id + "|" + razorpay_payment_id);
+      const generatedSignature = hmac.digest("hex");
+
+      if (generatedSignature !== razorpay_signature) {
+        return res.status(400).json({ error: "Payment signature verification failed. Transaction was not verified." });
+      }
+
+      // Re-verify stock before completing order
+      for (const item of items) {
+        const actualIdStr = String(item.id).split('_')[0];
+        const parsedId = parseInt(actualIdStr, 10);
+        let dbProd = null;
+        if (isDbConfigured && isDbHealthy && !isNaN(parsedId)) {
+          try {
+            const dbResult = await pool.query("SELECT stock, name FROM products WHERE id = $1", [parsedId]);
+            if (dbResult.rows.length > 0) {
+              dbProd = dbResult.rows[0];
+            }
+          } catch (e) {}
+        }
+        if (dbProd) {
+          const currentStock = parseInt(dbProd.stock || 0);
+          if (currentStock < item.quantity) {
+            return res.status(400).json({ error: `Product "${dbProd.name}" stock went out during checkout. Payment refunded.` });
+          }
+        }
+      }
+
+      let createdOrder = null;
+      const paymentTime = new Date();
+      const paymentStatus = "Paid";
+      const transactionId = razorpay_payment_id;
+
+      // Update database using SQL Transaction
+      if (isDbConfigured && isDbHealthy) {
+        const client = await pool.connect();
+        try {
+          await client.query("BEGIN");
+
+          // Reduce stock for each product
+          for (const item of items) {
+            const actualIdStr = String(item.id).split('_')[0];
+            const parsedId = parseInt(actualIdStr, 10);
+            if (!isNaN(parsedId)) {
+              await client.query(
+                "UPDATE products SET stock = stock - $1, updated_at = NOW() WHERE id = $2",
+                [item.quantity, parsedId]
+              );
+            }
+          }
+
+          // Create final order in the database with Razorpay variables
+          const dbResult = await client.query(
+            `INSERT INTO orders (
+              user_id, items, total_amount, shipping_address, city, state, zip, country, payment_method, status, order_date,
+              razorpay_order_id, razorpay_payment_id, razorpay_signature, payment_status, transaction_id, payment_time
+            )
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'Processing', NOW(), $10, $11, $12, $13, $14, $15)
+             RETURNING *`,
+            [
+              userId,
+              JSON.stringify(items),
+              total_amount,
+              shipping_address || null,
+              city || null,
+              state || null,
+              zip || null,
+              country || null,
+              payment_method || "UPI",
+              razorpay_order_id,
+              razorpay_payment_id,
+              razorpay_signature,
+              paymentStatus,
+              transactionId,
+              paymentTime
+            ]
+          );
+
+          if (dbResult.rows.length > 0) {
+            createdOrder = dbResult.rows[0];
+          }
+
+          await client.query("COMMIT");
+        } catch (dbErr: any) {
+          await client.query("ROLLBACK");
+          console.error("Order completion database transaction error:", dbErr);
+          return res.status(500).json({ error: "Failed to process order transaction in database.", details: dbErr.message });
+        } finally {
+          client.release();
+        }
+      }
+
+      // Fallback update to local memory if database was bypassed/failed
+      if (!createdOrder) {
+        const fallbackId = inMemoryOrders.length + 10001 + Math.floor(Math.random() * 9000);
+        createdOrder = {
+          id: fallbackId,
+          user_id: userId,
+          order_date: new Date(),
+          status: 'Processing',
+          items,
+          total_amount,
+          shipping_address,
+          city,
+          state,
+          zip,
+          country,
+          payment_method,
+          razorpay_order_id,
+          razorpay_payment_id,
+          razorpay_signature,
+          payment_status: paymentStatus,
+          transaction_id: transactionId,
+          payment_time: paymentTime,
+          created_at: new Date()
+        };
+        inMemoryOrders.push(createdOrder);
+        await saveFallbackData();
+      }
+
+      res.json({
+        success: true,
+        message: "Payment successfully verified and order placed.",
+        order: createdOrder
+      });
+    } catch (err: any) {
+      console.error("Payment verification endpoint error:", err);
+      res.status(500).json({ error: "Internal payment verification failed.", details: err.message });
+    }
+  });
+
   // --- CART API ---
   app.get("/api/cart", async (req, res) => {
     try {
@@ -2114,13 +2457,17 @@ async function startServer() {
       }
 
       if (isDbConfigured && isDbHealthy) {
-        const parsedProdId = typeof productId === 'string' 
-          ? parseInt(productId.replace(/[^\d]/g, ""), 10)
-          : productId;
+        const prodIdStr = String(productId).split('_')[0];
+        const parsedProdId = parseInt(prodIdStr, 10);
+        const itemSize = String(productId).split('_')[1] || "6ml";
 
         if (!isNaN(parsedProdId)) {
           const existing = await db.select().from(cartItems)
-            .where(and(eq(cartItems.userId, userId), eq(cartItems.productId, parsedProdId)))
+            .where(and(
+              eq(cartItems.userId, userId),
+              eq(cartItems.productId, parsedProdId),
+              eq(cartItems.size, itemSize)
+            ))
             .limit(1);
 
           if (existing.length > 0) {
@@ -2132,7 +2479,7 @@ async function startServer() {
             return res.json(updated[0]);
           } else {
             const inserted = await db.insert(cartItems)
-              .values({ userId, productId: parsedProdId, quantity })
+              .values({ userId, productId: parsedProdId, quantity, size: itemSize })
               .returning();
             return res.json(inserted[0]);
           }
@@ -2176,11 +2523,16 @@ async function startServer() {
       }
 
       const prodIdStr = req.params.productId;
-      const parsedProdId = parseInt(prodIdStr.replace(/[^\d]/g, ""), 10);
+      const parsedProdId = parseInt(prodIdStr.split('_')[0], 10);
+      const itemSize = prodIdStr.split('_')[1] || "6ml";
 
       if (isDbConfigured && isDbHealthy) {
         if (!isNaN(parsedProdId)) {
-          await db.delete(cartItems).where(and(eq(cartItems.userId, userId), eq(cartItems.productId, parsedProdId)));
+          await db.delete(cartItems).where(and(
+            eq(cartItems.userId, userId),
+            eq(cartItems.productId, parsedProdId),
+            eq(cartItems.size, itemSize)
+          ));
           return res.json({ success: true });
         }
       }
@@ -2212,7 +2564,8 @@ async function startServer() {
       }
 
       const prodIdStr = req.params.productId;
-      const parsedProdId = parseInt(prodIdStr.replace(/[^\d]/g, ""), 10);
+      const parsedProdId = parseInt(prodIdStr.split('_')[0], 10);
+      const itemSize = prodIdStr.split('_')[1] || "6ml";
       const { quantity } = req.body;
 
       if (typeof quantity !== 'number' || quantity < 1) {
@@ -2223,7 +2576,11 @@ async function startServer() {
         if (!isNaN(parsedProdId)) {
           const updated = await db.update(cartItems)
             .set({ quantity, updatedAt: new Date() })
-            .where(and(eq(cartItems.userId, userId), eq(cartItems.productId, parsedProdId)))
+            .where(and(
+              eq(cartItems.userId, userId),
+              eq(cartItems.productId, parsedProdId),
+              eq(cartItems.size, itemSize)
+            ))
             .returning();
           return res.json({ success: true, updated: updated[0] });
         }

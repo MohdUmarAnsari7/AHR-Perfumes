@@ -58,14 +58,57 @@ export const useCartStore = create<CartStore>()(
                   for (const dbItem of dbCartItems) {
                     const product = products.find((p: any) => String(p.id) === String(dbItem.productId));
                     if (product) {
+                      const itemSize = dbItem.size || "6ml";
+                      let displayPrice = Number(product.price);
+                      let displayOriginalPrice = product.originalPrice ? Number(product.originalPrice) : undefined;
+
+                      let parsedSizes: any[] = [];
+                      if (product.sizes) {
+                        try {
+                          parsedSizes = typeof product.sizes === "string" ? JSON.parse(product.sizes) : product.sizes;
+                        } catch (e) {}
+                      }
+                      if (!Array.isArray(parsedSizes)) parsedSizes = [];
+
+                      if (parsedSizes.length > 0) {
+                        const matched = parsedSizes.find((s: any) => {
+                          if (typeof s === "string") return s === itemSize;
+                          if (typeof s === "object" && s !== null && "size" in s) {
+                            return String(s.size).toLowerCase() === itemSize.toLowerCase();
+                          }
+                          return false;
+                        });
+                        if (matched && typeof matched === "object" && "price" in matched && matched.price) {
+                          displayPrice = parseFloat(matched.price);
+                        }
+                        if (matched && typeof matched === "object" && "originalPrice" in matched && matched.originalPrice) {
+                          displayOriginalPrice = parseFloat(matched.originalPrice);
+                        }
+                      } else {
+                        const basePrice = parseFloat(product.price);
+                        if (itemSize === "3ml") displayPrice = Math.round(basePrice * 0.5);
+                        else if (itemSize === "6ml") displayPrice = Math.round(basePrice * 0.75);
+                        else if (itemSize === "12ml") displayPrice = basePrice;
+                        else if (itemSize === "100ml") displayPrice = Math.round(basePrice * 1.6);
+
+                        if (product.originalPrice) {
+                          const baseOrig = parseFloat(String(product.originalPrice));
+                          if (itemSize === "3ml") displayOriginalPrice = Math.round(baseOrig * 0.5);
+                          else if (itemSize === "6ml") displayOriginalPrice = Math.round(baseOrig * 0.75);
+                          else if (itemSize === "12ml") displayOriginalPrice = baseOrig;
+                          else if (itemSize === "100ml") displayOriginalPrice = Math.round(baseOrig * 1.6);
+                        }
+                      }
+
                       mappedItems.push({
-                        id: String(product.id),
-                        name: product.name,
+                        id: `${product.id}_${itemSize}`,
+                        name: `${product.name} (${itemSize})`,
                         category: product.category,
-                        price: Number(product.price),
-                        originalPrice: product.originalPrice ? Number(product.originalPrice) : undefined,
+                        price: displayPrice,
+                        originalPrice: displayOriginalPrice,
                         quantity: dbItem.quantity,
                         image: product.image,
+                        size: itemSize,
                       });
                     }
                   }
