@@ -27,21 +27,23 @@ export default function Layout() {
     initializeAuth();
   }, [initializeAuth]);
 
-  // Keep-alive ping to keep the Render backend active (every 15 minutes)
+  // Keep-alive ping to keep the Render backend active (every 10 minutes)
   useEffect(() => {
     const pingHealth = () => {
-      fetch("/api/health")
-        .catch((err) => {
-          // Silently catch and log as warn to prevent UI impact
-          console.warn("Keep-alive health ping failed:", err);
-        });
+      const pingUrl = (import.meta as any).env?.VITE_RENDER_URL 
+        ? `${(import.meta as any).env.VITE_RENDER_URL}/api/health` 
+        : "https://ahr-perfumes-1.onrender.com/api/health";
+
+      fetch(pingUrl)
+        .then((res) => console.log(`[Ping] Kept Render backend alive, status: ${res.status}`))
+        .catch((err) => console.error("[Ping] Error pinging Render backend:", err.message));
     };
 
     // Initial ping on mount
     pingHealth();
 
-    // Ping every 15 minutes (15 * 60 * 1000 ms)
-    const intervalId = setInterval(pingHealth, 15 * 60 * 1000);
+    // Ping every 10 minutes (10 * 60 * 1000 ms)
+    const intervalId = setInterval(pingHealth, 10 * 60 * 1000);
 
     return () => clearInterval(intervalId);
   }, []);
